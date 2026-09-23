@@ -5,7 +5,7 @@ from sqlalchemy import asc, desc
 from datetime import datetime
 from typing import Annotated, Optional, List
 from database import SessionLocal
-from models import Users, Donors, DonationHistory, BloodRequests, Notifications, Reports
+from models import Users, Donors, DonationHistory, BloodRequests, Notifications
 from router.auth import get_current_user, user_dependency, db_dependency
 from fastapi.responses import JSONResponse
 
@@ -36,13 +36,6 @@ class BloodRequestUpdate(BaseModel):
     contact_number: Optional[str] = None
     urgency: Optional[str] = None
     additional_info: Optional[str] = None
-
-# Schema for reporting fake requests or spam
-class ReportCreate(BaseModel):
-    reported_user_id: Optional[int] = Field(default=None, description="User ID being reported")
-    request_id: Optional[int] = Field(default=None, description="Blood request ID being reported")
-    reason: str = Field(..., description="fake_request | spam | harassment | wrong_information | other")
-    description: Optional[str] = Field(default=None, description="Details about the issue")
 
 # Public blood donor search with filtering, sorting, date range, and pagination
 @router.get("/donors/search")
@@ -203,45 +196,6 @@ def get_donor_full_profile(donor_id: int, db: db_dependency):
             }
             for h in history
         ]
-    }
-
-# Public listing of all donors with filters and pagination
-@router.get("/donors/all/list")
-def get_all_donors_list(
-    db: db_dependency,
-    blood_group: Optional[str] = Query(default=None),
-    location: Optional[str] = Query(default=None),
-    available_only: bool = Query(default=False),
-    sort_by: str = Query(default="id", description="Sort: id | name | blood_group | location"),
-    sort_order: str = Query(default="asc", description="asc | desc"),
-    page: int = Query(default=1, ge=1),
-    page_size: int = Query(default=20, ge=1, le=100),
-):
-    query = db.query(Donors)
-    if blood_group:
-        query = query.filter(Donors.blood_group == blood_group.strip())
-    if location:
-        query = query.filter(Donors.location.ilike(f"%{location.strip()}%"))
-    if available_only:
-        query = query.filter(Donors.availability == True)
-
-    sort_col_map = {"name": Donors.name, "blood_group": Donors.blood_group, "location": Donors.location, "id": Donors.id}
-    col = sort_col_map.get(sort_by, Donors.id)
-    order_fn = desc if sort_order.lower() == "desc" else asc
-    query = query.order_by(order_fn(col))
-
-    total_count = query.count()
-    total_pages = (total_count + page_size - 1) // page_size
-    donors = query.offset((page - 1) * page_size).limit(page_size).all()
-
-    return {
-        "pagination": {
-            "page": page,
-            "page_size": page_size,
-            "total_items": total_count,
-            "total_pages": total_pages,
-        },
-        "donors": donors,
     }
 
 # Create a blood request and notify matching donors
@@ -492,16 +446,6 @@ def get_all_open_requests(
         "requests": results,
     }
 
-# Public feed of emergency blood requests (Defined before {request_id})
-@router.get("/blood-request/emergency")
-def get_emergency_requests(db: db_dependency):
-    return (
-        db.query(BloodRequests)
-        .filter(BloodRequests.urgency == "emergency", BloodRequests.status.in_(["pending", "donor_found"]))
-        .order_by(BloodRequests.id.desc())
-        .all()
-    )
-
 # Get a single blood request by ID
 @router.get("/blood-request/{request_id}")
 def get_blood_request_by_id(request_id: int, db: db_dependency):
@@ -660,19 +604,3 @@ def mark_all_notifications_read(user: user_dependency, db: db_dependency):
     db.query(Notifications).filter(Notifications.user_id == user["id"]).update({"is_read": True})
     db.commit()
     return JSONResponse(status_code=200, content={"message": "All notifications marked as read"})
-
-# Submit a report for spam or fake blood request
-@router.post("/reports", status_code=status.HTTP_201_CREATED)
-def submit_report(user: user_dependency, db: db_dependency, report: ReportCreate):
-    new_report = Reports(
-        reporter_id=user["id"],
-        reported_user_id=report.reported_user_id,
-        request_id=report.request_id,
-        reason=report.reason,
-        description=report.description,
-        status="pending",
-        created_at=datetime.now(),
-    )
-    db.add(new_report)
-    db.commit()
-    return JSONResponse(status_code=201, content={"message": "Report submitted. Admin will review shortly."})

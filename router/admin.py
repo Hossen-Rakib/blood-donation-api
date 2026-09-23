@@ -5,7 +5,7 @@ from sqlalchemy import func, asc, desc
 from datetime import datetime
 from typing import Annotated, Optional
 from database import SessionLocal
-from models import Users, Donors, DonationHistory, BloodRequests, Reports, Notifications
+from models import Users, Donors, DonationHistory, BloodRequests, Notifications
 from router.auth import get_current_user, user_dependency, db_dependency
 from fastapi.responses import JSONResponse
 
@@ -15,27 +15,6 @@ router = APIRouter(prefix="/admin", tags=["Admin Operations"])
 # Schema for updating blood request status
 class StatusUpdate(BaseModel):
     status: str = Field(..., description="pending | donor_found | donor_accepted | donation_completed | request_closed | cancelled")
-
-# Schema for resolving a user report
-class ReportResolution(BaseModel):
-    status: str = Field(..., description="reviewed | dismissed")
-
-# Schema for manually adding a donation history entry
-class ManualDonationRecord(BaseModel):
-    donor_id: int
-    blood_group: str
-    bags: int = Field(default=1, ge=1)
-    hospital_location: str
-    donated_date: Optional[datetime] = None
-    note: Optional[str] = None
-
-# Schema for updating a donation history entry
-class UpdateDonationRecord(BaseModel):
-    blood_group: Optional[str] = None
-    bags: Optional[int] = Field(default=None, ge=1)
-    hospital_location: Optional[str] = None
-    donated_date: Optional[datetime] = None
-    note: Optional[str] = None
 
 # Verify that current user has admin role
 def require_admin(user: dict):
@@ -57,7 +36,6 @@ def get_admin_dashboard_stats(user: user_dependency, db: db_dependency):
     emergency_requests = db.query(BloodRequests).filter(BloodRequests.urgency == "emergency").count()
     completed_requests = db.query(BloodRequests).filter(BloodRequests.status == "donation_completed").count()
     pending_requests = db.query(BloodRequests).filter(BloodRequests.status == "pending").count()
-    pending_reports = db.query(Reports).filter(Reports.status == "pending").count()
 
     # Blood group distribution among donors
     donor_bg_rows = (
@@ -96,7 +74,6 @@ def get_admin_dashboard_stats(user: user_dependency, db: db_dependency):
             "emergency_requests": emergency_requests,
             "completed_requests": completed_requests,
             "pending_requests": pending_requests,
-            "pending_reports": pending_reports,
         },
         "charts": {
             "blood_group_distribution": {
@@ -209,18 +186,6 @@ def toggle_donor_verification(donor_id: int, user: user_dependency, db: db_depen
     status_str = "Verified" if donor.verified else "Unverified"
     return JSONResponse(status_code=200, content={"message": f"Donor status updated to {status_str}", "verified": donor.verified})
 
-# Delete donor record by admin
-@router.delete("/donors/{donor_id}")
-def delete_donor(donor_id: int, user: user_dependency, db: db_dependency):
-    require_admin(user)
-    donor = db.query(Donors).filter(Donors.id == donor_id).first()
-    if not donor:
-        raise HTTPException(status_code=404, detail="Donor not found")
-
-    db.delete(donor)
-    db.commit()
-    return JSONResponse(status_code=200, content={"message": "Donor deleted successfully"})
-
 # Monitor all blood requests across platform
 @router.get("/requests/all")
 def get_all_requests_admin(
@@ -270,103 +235,3 @@ def delete_blood_request_admin(request_id: int, user: user_dependency, db: db_de
     db.delete(req)
     db.commit()
     return JSONResponse(status_code=200, content={"message": "Blood request deleted (fake/spam removed)"})
-
-# View all user submitted reports
-@router.get("/reports")
-def get_all_reports(user: user_dependency, db: db_dependency):
-    require_admin(user)
-    reports = db.query(Reports).order_by(Reports.id.desc()).all()
-    return reports
-
-# Update report status to reviewed or dismissed
-@router.put("/reports/{report_id}/resolve")
-def resolve_report(
-    report_id: int,
-    payload: ReportResolution,
-    user: user_dependency,
-    db: db_dependency,
-):
-    require_admin(user)
-    rep = db.query(Reports).filter(Reports.id == report_id).first()
-    if not rep:
-        raise HTTPException(status_code=404, detail="Report not found")
-
-    rep.status = payload.status
-    db.commit()
-    return JSONResponse(status_code=200, content={"message": f"Report marked as '{payload.status}'"})
-
-# Delete a user report (CRUD completeness)
-@router.delete("/reports/{report_id}")
-def delete_report(report_id: int, user: user_dependency, db: db_dependency):
-    require_admin(user)
-    rep = db.query(Reports).filter(Reports.id == report_id).first()
-    if not rep:
-        raise HTTPException(status_code=404, detail="Report not found")
-
-    db.delete(rep)
-    db.commit()
-    return JSONResponse(status_code=200, content={"message": "Report deleted successfully"})
-
-# Record donation history entry manually for any donor
-@router.post("/donation-history", status_code=status.HTTP_201_CREATED)
-def add_donation_history_admin(
-    record: ManualDonationRecord,
-    user: user_dependency,
-    db: db_dependency,
-):
-    require_admin(user)
-    donor = db.query(Donors).filter(Donors.id == record.donor_id).first()
-    if not donor:
-        raise HTTPException(status_code=404, detail="Donor not found")
-
-    donation_dt = record.donated_date or datetime.now()
-    history = DonationHistory(
-        donor_id=donor.id,
-        donated_date=donation_dt,
-        blood_group=record.blood_group,
-        bags=record.bags,
-        hospital_location=record.hospital_location,
-        note=record.note,
-    )
-    donor.last_donation_date = donation_dt
-
-    db.add(history)
-    db.commit()
-    return JSONResponse(status_code=201, content={"message": f"Donation history recorded for {donor.name}"})
-
-# Update a donation history record
-@router.put("/donation-history/{history_id}")
-def update_donation_history_admin(
-    history_id: int,
-    updates: UpdateDonationRecord,
-    user: user_dependency,
-    db: db_dependency,
-):
-    require_admin(user)
-    record = db.query(DonationHistory).filter(DonationHistory.id == history_id).first()
-    if not record:
-        raise HTTPException(status_code=404, detail="Donation history record not found")
-
-    data = updates.model_dump(exclude_unset=True)
-    for field, value in data.items():
-        if value is not None:
-            setattr(record, field, value)
-
-    db.commit()
-    return JSONResponse(status_code=200, content={"message": "Donation record updated successfully"})
-
-# Delete a donation history record
-@router.delete("/donation-history/{history_id}")
-def delete_donation_history_admin(
-    history_id: int,
-    user: user_dependency,
-    db: db_dependency,
-):
-    require_admin(user)
-    record = db.query(DonationHistory).filter(DonationHistory.id == history_id).first()
-    if not record:
-        raise HTTPException(status_code=404, detail="Donation history record not found")
-
-    db.delete(record)
-    db.commit()
-    return JSONResponse(status_code=200, content={"message": "Donation record deleted successfully"})

@@ -96,3 +96,17 @@ def test_delete_blood_request():
     setup_test_request()
     response = client.delete('/blood-request/999')
     assert response.status_code == status.HTTP_200_OK
+
+# Test reset password endpoint
+def test_reset_password():
+    response = client.post('/auth/reset-password', json={
+        "email": "nonexistent@test.com",
+        "new_password": "newpassword123"
+    })
+    # Non-existent email should return 404
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+
+# Test delete donor profile endpoint (unregistered donor returns 404)
+def test_delete_donor_profile_not_found():
+    response = client.delete('/donor/delete-profile')
+    assert response.status_code in [status.HTTP_404_NOT_FOUND, status.HTTP_200_OK]

@@ -39,10 +39,6 @@ class DonorProfileUpdate(BaseModel):
     gender: Optional[str] = None
     availability: Optional[bool] = None
 
-# Schema for toggling donor availability
-class AvailabilityToggle(BaseModel):
-    availability: bool = Field(..., description="True = Available, False = Not Available")
-
 # Direct donor registration using email as User ID
 @router.post("/register", status_code=status.HTTP_201_CREATED)
 def register_donor(donor_data: DonorRegister, db: db_dependency):
@@ -157,22 +153,6 @@ def get_donor_dashboard(user: user_dependency, db: db_dependency):
         ]
     }
 
-# Toggle donor availability between available and not available
-@router.put("/availability")
-def toggle_availability(user: user_dependency, db: db_dependency, payload: AvailabilityToggle):
-    donor = db.query(Donors).filter(Donors.user_id == user["id"]).first()
-    if not donor:
-        raise HTTPException(status_code=404, detail="Donor profile not found")
-
-    donor.availability = payload.availability
-    db.commit()
-
-    status_str = "Available" if donor.availability else "Not Available"
-    return JSONResponse(
-        status_code=200,
-        content={"message": f"Donation status updated to: {status_str}", "availability": donor.availability}
-    )
-
 # Update donor profile details
 @router.put("/me")
 def update_donor_profile(user: user_dependency, db: db_dependency, updates: DonorProfileUpdate):
@@ -197,8 +177,8 @@ def update_donor_profile(user: user_dependency, db: db_dependency, updates: Dono
     db.commit()
     return JSONResponse(status_code=200, content={"message": "Donor profile updated successfully"})
 
-# Delete donor profile for current logged in user (CRUD completeness)
-@router.delete("/me")
+# Delete donor profile for current logged in user
+@router.delete("/delete-profile")
 def delete_donor_profile(user: user_dependency, db: db_dependency):
     donor = db.query(Donors).filter(Donors.user_id == user["id"]).first()
     if not donor:
@@ -311,35 +291,3 @@ def reject_blood_request(user: user_dependency, db: db_dependency, request_id: i
         return JSONResponse(status_code=200, content={"message": "You have declined this request. It is now open again."})
 
     return JSONResponse(status_code=200, content={"message": "Request declined."})
-
-# View logged-in donor historical donation log
-@router.get("/history")
-def get_donor_donation_history(user: user_dependency, db: db_dependency):
-    donor = db.query(Donors).filter(Donors.user_id == user["id"]).first()
-    if not donor:
-        raise HTTPException(status_code=404, detail="Donor profile not found")
-
-    history = (
-        db.query(DonationHistory)
-        .filter(DonationHistory.donor_id == donor.id)
-        .order_by(DonationHistory.donated_date.desc())
-        .all()
-    )
-
-    return {
-        "donor_name": donor.name,
-        "blood_group": donor.blood_group,
-        "total_donations": len(history),
-        "total_bags_donated": sum(h.bags for h in history),
-        "history": [
-            {
-                "id": h.id,
-                "donated_date": h.donated_date.strftime("%Y-%m-%d"),
-                "blood_group": h.blood_group,
-                "bags": h.bags,
-                "hospital_location": h.hospital_location,
-                "note": h.note,
-            }
-            for h in history
-        ]
-    }
