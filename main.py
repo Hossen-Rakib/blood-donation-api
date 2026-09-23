@@ -8,7 +8,7 @@ import models
 from models import Users, Donors, BloodRequests
 from typing import Annotated, Optional
 from database import engine, sessionLocal
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.responses import JSONResponse
 from router import auth, admin, donor, requester
 from router.auth import get_current_user
 
@@ -63,20 +63,6 @@ def get_db():
 
 db_dependency = Annotated[Session, Depends(get_db)]
 user_dependency = Annotated[dict, Depends(get_current_user)]
-
-# Root endpoint redirects directly to /docs
-@app.get('/')
-def root():
-    return RedirectResponse(url='/docs')
-
-# Health check endpoint
-@app.get('/health', tags=['Health'])
-def health_check():
-    return {
-        "status": "healthy",
-        "service": "Blood Donation Platform Backend API",
-        "version": "2.0.0",
-    }
 
 # Show user data (get request)
 @app.get('/user', tags=['User'])
