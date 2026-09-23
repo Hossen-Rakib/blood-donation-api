@@ -201,7 +201,8 @@ def get_matching_blood_requests(
 
     query = db.query(BloodRequests).filter(
         BloodRequests.blood_group == donor.blood_group,
-        BloodRequests.status.in_(["pending", "donor_found"])
+        BloodRequests.status.in_(["pending", "donor_found"]),
+        BloodRequests.requester_id != user["id"]
     )
 
     if filter_by_location:
@@ -240,6 +241,9 @@ def accept_blood_request(user: user_dependency, db: db_dependency, request_id: i
     req = db.query(BloodRequests).filter(BloodRequests.id == request_id).first()
     if not req:
         raise HTTPException(status_code=404, detail="Blood request not found")
+
+    if req.requester_id == user["id"]:
+        raise HTTPException(status_code=400, detail="You cannot accept your own blood request")
 
     if req.status in ["donor_accepted", "donation_completed", "request_closed"]:
         raise HTTPException(status_code=400, detail=f"Request is already in '{req.status}' state")
