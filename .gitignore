@@ -25,3 +25,7 @@ env/
 
 # Logs
 *.log
+
+# Documents and temp files
+*.docx
+~$*

@@ -24,7 +24,7 @@ SQLALCHEMY_DATABASE_URL = os.getenv('DATABASE_URL', '')
 if SQLALCHEMY_DATABASE_URL.startswith("postgres://"):
     SQLALCHEMY_DATABASE_URL = SQLALCHEMY_DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
-# Build local MySQL URL from individual .env variables if DATABASE_URL is not set
+# If DATABASE_URL not set, build local MySQL URL from individual .env variables
 if not SQLALCHEMY_DATABASE_URL:
     mysql_user = os.getenv("MYSQL_USER", "root")
     mysql_password = os.getenv("MYSQL_PASSWORD", "")
@@ -36,7 +36,11 @@ if not SQLALCHEMY_DATABASE_URL:
 # Database engine initialization
 if SQLALCHEMY_DATABASE_URL.startswith("sqlite"):
     engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
+elif SQLALCHEMY_DATABASE_URL.startswith("postgresql"):
+    # PostgreSQL (Render cloud)
+    engine = create_engine(SQLALCHEMY_DATABASE_URL)
 else:
+    # MySQL (local development)
     engine = create_engine(SQLALCHEMY_DATABASE_URL)
 
 sessionLocal = sessionmaker(autoflush=False, autocommit=False, bind=engine)

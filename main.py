@@ -8,7 +8,7 @@ import models
 from models import Users, Donors, BloodRequests
 from typing import Annotated, Optional
 from database import engine, sessionLocal
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from router import auth, admin, donor, requester
 from router.auth import get_current_user
 
@@ -63,6 +63,11 @@ def get_db():
 
 db_dependency = Annotated[Session, Depends(get_db)]
 user_dependency = Annotated[dict, Depends(get_current_user)]
+
+# Root endpoint redirects directly to /docs (hidden from Swagger schema)
+@app.get('/', include_in_schema=False)
+def root():
+    return RedirectResponse(url='/docs')
 
 # Show user data (get request)
 @app.get('/user', tags=['User'])
