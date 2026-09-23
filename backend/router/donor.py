@@ -35,9 +35,19 @@ class DonorProfileUpdate(BaseModel):
     name: Optional[str] = None
     phone: Optional[str] = None
     location: Optional[str] = None
+    blood_group: Optional[str] = None
     age: Optional[int] = None
     gender: Optional[str] = None
     availability: Optional[bool] = None
+
+# Schema for activating or becoming a donor for any existing user
+class BecomeDonorRequest(BaseModel):
+    blood_group: str = Field(..., description="Blood Group e.g. A+, A-, B+, B-, AB+, AB-, O+, O-")
+    location: Optional[str] = Field(default=None, description="Dhaka Area")
+    phone: Optional[str] = Field(default=None, description="Mobile Phone Number")
+    age: Optional[int] = Field(default=None, description="Age in years")
+    gender: Optional[str] = Field(default=None, description="Male, Female, Other")
+    availability: Optional[bool] = Field(default=True, description="Availability toggle")
 
 # Direct donor registration using email as User ID
 @router.post("/register", status_code=status.HTTP_201_CREATED)
@@ -59,7 +69,7 @@ def register_donor(donor_data: DonorRegister, db: db_dependency):
         email=clean_email,
         phone=donor_data.phone.strip(),
         hash_password=bcrypt_context.hash(donor_data.password),
-        role="donor",
+        role="user",
         location=donor_data.location.strip(),
         is_active=True,
     )
@@ -153,26 +163,107 @@ def get_donor_dashboard(user: user_dependency, db: db_dependency):
         ]
     }
 
+# Create or activate donor profile for current logged-in user
+@router.post("/become-donor")
+def become_or_activate_donor(user: user_dependency, db: db_dependency, donor_data: BecomeDonorRequest):
+    db_user = db.query(Users).filter(Users.id == user["id"]).first()
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User account not found")
+
+    clean_bg = donor_data.blood_group.strip().upper()
+    existing_donor = db.query(Donors).filter(Donors.user_id == user["id"]).first()
+
+    if existing_donor:
+        existing_donor.blood_group = clean_bg
+        if donor_data.location:
+            existing_donor.location = donor_data.location.strip()
+            db_user.location = donor_data.location.strip()
+        if donor_data.phone:
+            existing_donor.phone = donor_data.phone.strip()
+            db_user.phone = donor_data.phone.strip()
+        if donor_data.age is not None:
+            existing_donor.age = donor_data.age
+        if donor_data.gender:
+            existing_donor.gender = donor_data.gender
+        if donor_data.availability is not None:
+            existing_donor.availability = donor_data.availability
+        db.commit()
+        db.refresh(existing_donor)
+        return {
+            "message": "Donor profile updated successfully! You can donate blood anytime.",
+            "donor_id": existing_donor.id,
+            "blood_group": existing_donor.blood_group,
+            "availability": existing_donor.availability,
+        }
+
+    new_donor = Donors(
+        user_id=db_user.id,
+        name=db_user.name,
+        email=db_user.email,
+        blood_group=clean_bg,
+        phone=donor_data.phone.strip() if donor_data.phone else db_user.phone,
+        location=donor_data.location.strip() if donor_data.location else db_user.location,
+        age=donor_data.age,
+        gender=donor_data.gender,
+        availability=donor_data.availability if donor_data.availability is not None else True,
+        verified=True,
+    )
+    db.add(new_donor)
+    db.commit()
+    db.refresh(new_donor)
+
+    return {
+        "message": "Donor profile activated successfully! You can now accept blood requests and donate.",
+        "donor_id": new_donor.id,
+        "blood_group": new_donor.blood_group,
+        "availability": new_donor.availability,
+    }
+
 # Update donor profile details
 @router.put("/me")
 def update_donor_profile(user: user_dependency, db: db_dependency, updates: DonorProfileUpdate):
     donor = db.query(Donors).filter(Donors.user_id == user["id"]).first()
-    if not donor:
-        raise HTTPException(status_code=404, detail="Donor profile not found")
+    db_user = db.query(Users).filter(Users.id == user["id"]).first()
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User account not found")
 
     data = updates.model_dump(exclude_unset=True)
-    for field, value in data.items():
-        setattr(donor, field, value)
 
-    # Synchronize user phone and location
-    db_user = db.query(Users).filter(Users.id == user["id"]).first()
-    if db_user:
-        if "phone" in data:
-            db_user.phone = data["phone"]
-        if "location" in data:
-            db_user.location = data["location"]
-        if "name" in data:
-            db_user.name = data["name"]
+    if not donor:
+        # If user does not have a donor record yet, create one
+        bg = data.get("blood_group")
+        if not bg:
+            raise HTTPException(status_code=400, detail="Blood group is required to activate donor profile")
+        donor = Donors(
+            user_id=db_user.id,
+            name=data.get("name", db_user.name),
+            email=db_user.email,
+            blood_group=bg.strip().upper(),
+            phone=data.get("phone", db_user.phone),
+            location=data.get("location", db_user.location),
+            age=data.get("age"),
+            gender=data.get("gender"),
+            availability=data.get("availability", True),
+            verified=True,
+        )
+        db.add(donor)
+        db.commit()
+        db.refresh(donor)
+        return JSONResponse(status_code=200, content={"message": "Donor profile created and activated successfully"})
+
+    for field, value in data.items():
+        if field == "blood_group" and value:
+            setattr(donor, field, value.strip().upper())
+        else:
+            setattr(donor, field, value)
+
+    # Synchronize user phone, location, and name
+    if "phone" in data:
+        db_user.phone = data["phone"]
+    if "location" in data:
+        db_user.location = data["location"]
+    if "name" in data:
+        db_user.name = data["name"]
 
     db.commit()
     return JSONResponse(status_code=200, content={"message": "Donor profile updated successfully"})

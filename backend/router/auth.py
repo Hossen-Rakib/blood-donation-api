@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from datetime import timedelta, datetime, timezone
 from typing import Annotated, Optional
 from database import sessionLocal
-from models import Users
+from models import Users, Donors
 from fastapi.responses import JSONResponse
 from passlib.context import CryptContext
 from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
@@ -21,15 +21,18 @@ SECRET_KEY = '79c463b8c7296ef09bfc9e7a374f6c5609a252cb90b55f1fcb4aa73121993a6a'
 ALGORITHM = 'HS256'
 ACCESS_TOKEN_EXPIRE_MINUTES = 1440
 
-# pydantic class for user data validation
+# Pydantic schema for unified registration (acts as both donor and requester)
 class CreateUserRequest(BaseModel):
-    username: str
-    email: str
-    password: str
-    role: Optional[str] = 'requester'
-    name: Optional[str] = None
-    phone: Optional[str] = None
-    location: Optional[str] = 'Dhaka'
+    email: str = Field(..., description="Email Address (Used as login ID)")
+    password: str = Field(..., min_length=4, description="Password (min 4 characters)")
+    name: Optional[str] = Field(default=None, description="Full Name")
+    phone: Optional[str] = Field(default=None, description="Mobile Phone Number")
+    blood_group: Optional[str] = Field(default=None, description="Blood Group e.g. A+, A-, B+, B-, AB+, AB-, O+, O-")
+    location: Optional[str] = Field(default="Dhaka", description="Dhaka Area (Mirpur, Dhanmondi, etc.)")
+    username: Optional[str] = Field(default=None, description="Optional username, defaults to email")
+    role: Optional[str] = Field(default="user", description="Account role: user (donor + requester) or admin")
+    age: Optional[int] = Field(default=None, description="Age in years")
+    gender: Optional[str] = Field(default=None, description="Gender (Male, Female, Other)")
 
 # Alias for compatibility
 UserRegister = CreateUserRequest
@@ -77,22 +80,86 @@ def get_db():
 db_dependency = Annotated[Session, Depends(get_db)]
 user_dependency = Annotated[dict, Depends(get_current_user)]
 
-# create new user
-@router.post('/register')
+# Unified single registration endpoint (user can both donate and request blood)
+@router.post('/register', status_code=201)
 def create_users(db: db_dependency, new_user: CreateUserRequest):
+    clean_email = new_user.email.strip().lower()
+    clean_username = (new_user.username.strip().lower()) if new_user.username else clean_email
+    display_name = (new_user.name.strip()) if new_user.name else clean_username
+    phone_number = new_user.phone.strip() if new_user.phone else '01700000000'
+    user_location = new_user.location.strip() if new_user.location else 'Dhaka'
+
+    # Check if email or username is already registered
+    existing_user = db.query(Users).filter(
+        (Users.email.ilike(clean_email)) | (Users.username.ilike(clean_username))
+    ).first()
+    if existing_user:
+        raise HTTPException(status_code=400, detail='This email or username is already registered. Please login.')
+
+    # 1. Create User account (defaults to role 'user' who can both donate and request)
     user_model = Users(
-        name=new_user.name if new_user.name else new_user.username,
-        email=new_user.email,
-        username=new_user.username,
-        phone=new_user.phone if new_user.phone else '01700000000',
-        location=new_user.location if new_user.location else 'Dhaka',
+        name=display_name,
+        email=clean_email,
+        username=clean_username,
+        phone=phone_number,
+        location=user_location,
         hash_password=bcrypt_context.hash(new_user.password),
-        role=new_user.role if new_user.role else 'requester'
+        role=new_user.role if new_user.role else 'user',
+        is_active=True,
     )
     db.add(user_model)
+    db.flush()
+
+    # 2. If blood group is provided, automatically create linked Donors record
+    donor_id = None
+    clean_bg = new_user.blood_group.strip().upper() if new_user.blood_group else None
+    if clean_bg:
+        donor_model = Donors(
+            user_id=user_model.id,
+            name=user_model.name,
+            email=clean_email,
+            blood_group=clean_bg,
+            phone=phone_number,
+            location=user_location,
+            age=new_user.age,
+            gender=new_user.gender,
+            availability=True,
+            verified=True,
+        )
+        db.add(donor_model)
+        db.flush()
+        donor_id = donor_model.id
+
     db.commit()
     db.refresh(user_model)
-    return JSONResponse(status_code=201, content={'message': 'User registered successfully', 'user_id': user_model.id})
+
+    # 3. Generate access token for immediate authentication
+    token = create_access_token(
+        user_model.username,
+        user_model.id,
+        user_model.role,
+        timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    )
+
+    return JSONResponse(
+        status_code=201,
+        content={
+            'message': 'Registration successful! You can now both donate blood and request blood.',
+            'access_token': token,
+            'token_type': 'bearer',
+            'user_id': user_model.id,
+            'donor_id': donor_id,
+            'name': user_model.name,
+            'email': user_model.email,
+            'username': user_model.username,
+            'phone': user_model.phone,
+            'blood_group': clean_bg,
+            'location': user_model.location,
+            'role': user_model.role,
+            'can_donate': bool(donor_id),
+            'can_request': True,
+        }
+    )
 
 # login user
 @router.post('/login')

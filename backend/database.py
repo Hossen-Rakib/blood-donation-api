@@ -40,8 +40,14 @@ elif SQLALCHEMY_DATABASE_URL.startswith("postgresql"):
     # PostgreSQL (Render cloud)
     engine = create_engine(SQLALCHEMY_DATABASE_URL)
 else:
-    # MySQL (local development)
-    engine = create_engine(SQLALCHEMY_DATABASE_URL)
+    # MySQL (local development) with fallback to SQLite if database not found
+    try:
+        engine = create_engine(SQLALCHEMY_DATABASE_URL)
+        with engine.connect() as conn:
+            pass
+    except Exception:
+        SQLALCHEMY_DATABASE_URL = "sqlite:///./blood_donation.db"
+        engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
 
 sessionLocal = sessionmaker(autoflush=False, autocommit=False, bind=engine)
 SessionLocal = sessionLocal

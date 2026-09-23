@@ -13,7 +13,7 @@ class Users(Base):
     email         = Column(String(255), unique=True, index=True, nullable=False)
     phone         = Column(String(30), nullable=False)
     hash_password = Column(String(255), nullable=False)
-    role          = Column(String(30), default="requester")  # requester, donor, or admin
+    role          = Column(String(30), default="user")       # user (plays both donor and requester), or admin
     location      = Column(String(150), default="Dhaka")      # Dhaka area name
     profile_image = Column(String(500), nullable=True)
     is_active     = Column(Boolean, default=True)

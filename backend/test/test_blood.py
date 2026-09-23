@@ -15,9 +15,41 @@ def override_get_current_user():
         'role': 'requester'
     }
 
-# Setup sample data ensuring pending status
+# Setup sample data ensuring pending status, user, and donor
 def setup_test_request():
     db = sessionLocal()
+    user = db.query(Users).filter(Users.id == 2).first()
+    if not user:
+        user = Users(
+            id=2,
+            name='Test User',
+            username='user1',
+            email='user1@example.com',
+            phone='01811111111',
+            hash_password='hashed_password_test',
+            role='user',
+            location='Mirpur',
+            is_active=True,
+        )
+        db.add(user)
+        db.commit()
+
+    donor = db.query(Donors).filter(Donors.id == 1).first()
+    if not donor:
+        donor = Donors(
+            id=1,
+            user_id=2,
+            name='Test Donor',
+            email='donor1@example.com',
+            blood_group='A+',
+            phone='01811111111',
+            location='Mirpur',
+            availability=True,
+            verified=True,
+        )
+        db.add(donor)
+        db.commit()
+
     req = db.query(BloodRequests).filter(BloodRequests.id == 999).first()
     if not req:
         req = BloodRequests(
@@ -52,6 +84,7 @@ def test_search_donors():
 
 # Test read specific donor by ID
 def test_read_specific_donor():
+    setup_test_request()
     response = client.get('/donors/1')
     assert response.status_code == status.HTTP_200_OK
     assert response.json()['id'] == 1
@@ -110,3 +143,35 @@ def test_reset_password():
 def test_delete_donor_profile_not_found():
     response = client.delete('/donor/delete-profile')
     assert response.status_code in [status.HTTP_404_NOT_FOUND, status.HTTP_200_OK]
+
+# Test unified registration endpoint creating dual-role user (donor + requester)
+def test_unified_registration_dual_role():
+    import random
+    rand_id = random.randint(10000, 99999)
+    payload = {
+        "name": f"Dual User {rand_id}",
+        "email": f"dual_user_{rand_id}@example.com",
+        "password": "password123",
+        "phone": "01711223344",
+        "blood_group": "AB+",
+        "location": "Dhanmondi",
+        "age": 25,
+        "gender": "Male"
+    }
+    response = client.post('/auth/register', json=payload)
+    assert response.status_code == status.HTTP_201_CREATED
+    data = response.json()
+    assert 'access_token' in data
+    assert data['can_donate'] is True
+    assert data['can_request'] is True
+    assert data['blood_group'] == 'AB+'
+
+# Test get user profile endpoint returns can_donate and can_request
+def test_get_user_dual_role_fields():
+    setup_test_request()
+    response = client.get('/user')
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert 'can_request' in data
+    assert 'can_donate' in data
+    assert data['can_request'] is True
