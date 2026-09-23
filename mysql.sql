@@ -1,0 +1,178 @@
+-- Blood Donation Platform MySQL Database Script
+-- Schema + 40 Donors + Donation History + Demo Requesters + Admin
+-- Workbench Passwords: Rakib12043 / Rakib125043
+
+CREATE DATABASE IF NOT EXISTS `blood_donation_db`
+  CHARACTER SET utf8mb4
+  COLLATE utf8mb4_unicode_ci;
+
+USE `blood_donation_db`;
+
+-- 1. Table: users
+CREATE TABLE IF NOT EXISTS `users` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `name` VARCHAR(150) NOT NULL,
+  `username` VARCHAR(100) NOT NULL UNIQUE,
+  `email` VARCHAR(255) NOT NULL UNIQUE,
+  `phone` VARCHAR(30) NOT NULL,
+  `hash_password` VARCHAR(255) NOT NULL,
+  `role` VARCHAR(30) NOT NULL DEFAULT 'requester',
+  `location` VARCHAR(150) NOT NULL DEFAULT 'Dhaka',
+  `profile_image` VARCHAR(500) DEFAULT NULL,
+  `is_active` TINYINT(1) NOT NULL DEFAULT 1,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX `idx_users_role` (`role`),
+  INDEX `idx_users_username` (`username`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 2. Table: donors
+CREATE TABLE IF NOT EXISTS `donors` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `user_id` INT DEFAULT NULL,
+  `name` VARCHAR(150) NOT NULL,
+  `email` VARCHAR(255) DEFAULT NULL,
+  `blood_group` VARCHAR(10) NOT NULL,
+  `phone` VARCHAR(30) NOT NULL,
+  `location` VARCHAR(150) NOT NULL,
+  `age` INT DEFAULT NULL,
+  `gender` VARCHAR(10) DEFAULT 'Male',
+  `availability` TINYINT(1) NOT NULL DEFAULT 1,
+  `verified` TINYINT(1) NOT NULL DEFAULT 1,
+  `last_donation_date` DATETIME DEFAULT NULL,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX `idx_donors_bg` (`blood_group`),
+  INDEX `idx_donors_loc` (`location`),
+  INDEX `idx_donors_avail` (`availability`),
+  CONSTRAINT `fk_donors_user` FOREIGN KEY (`user_id`)
+    REFERENCES `users` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 3. Table: blood_requests
+CREATE TABLE IF NOT EXISTS `blood_requests` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `requester_id` INT NOT NULL,
+  `title` VARCHAR(200) DEFAULT 'Blood Request',
+  `patient_name` VARCHAR(150) NOT NULL,
+  `blood_group` VARCHAR(10) NOT NULL,
+  `required_bags` INT NOT NULL DEFAULT 1,
+  `hospital_name` VARCHAR(255) NOT NULL,
+  `hospital_location` VARCHAR(255) NOT NULL,
+  `required_date` VARCHAR(50) NOT NULL,
+  `contact_number` VARCHAR(30) NOT NULL,
+  `urgency` VARCHAR(30) NOT NULL DEFAULT 'normal',
+  `additional_info` TEXT DEFAULT NULL,
+  `status` VARCHAR(30) NOT NULL DEFAULT 'pending',
+  `accepted_donor_id` INT DEFAULT NULL,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX `idx_requests_bg` (`blood_group`),
+  INDEX `idx_requests_status` (`status`),
+  INDEX `idx_requests_urgency` (`urgency`),
+  CONSTRAINT `fk_req_requester` FOREIGN KEY (`requester_id`)
+    REFERENCES `users` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_req_accepted_donor` FOREIGN KEY (`accepted_donor_id`)
+    REFERENCES `donors` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 4. Table: donation_history
+CREATE TABLE IF NOT EXISTS `donation_history` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `donor_id` INT NOT NULL,
+  `request_id` INT DEFAULT NULL,
+  `donated_date` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `blood_group` VARCHAR(10) NOT NULL,
+  `bags` INT NOT NULL DEFAULT 1,
+  `hospital_location` VARCHAR(255) NOT NULL,
+  `note` TEXT DEFAULT NULL,
+  INDEX `idx_hist_donor` (`donor_id`),
+  CONSTRAINT `fk_hist_donor` FOREIGN KEY (`donor_id`)
+    REFERENCES `donors` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_hist_request` FOREIGN KEY (`request_id`)
+    REFERENCES `blood_requests` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 5. Table: notifications
+CREATE TABLE IF NOT EXISTS `notifications` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `user_id` INT NOT NULL,
+  `type` VARCHAR(50) NOT NULL,
+  `message` TEXT NOT NULL,
+  `request_id` INT DEFAULT NULL,
+  `is_read` TINYINT(1) NOT NULL DEFAULT 0,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX `idx_notif_user` (`user_id`),
+  CONSTRAINT `fk_notif_user` FOREIGN KEY (`user_id`)
+    REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 6. Table: reports
+CREATE TABLE IF NOT EXISTS `reports` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `reporter_id` INT NOT NULL,
+  `reported_user_id` INT DEFAULT NULL,
+  `request_id` INT DEFAULT NULL,
+  `reason` VARCHAR(100) NOT NULL,
+  `description` TEXT DEFAULT NULL,
+  `status` VARCHAR(30) NOT NULL DEFAULT 'pending',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT `fk_report_reporter` FOREIGN KEY (`reporter_id`)
+    REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Seed Data: Admin (Admin1234) and Requesters (User1234)
+INSERT INTO `users` (`id`, `name`, `username`, `email`, `phone`, `hash_password`, `role`, `location`) VALUES
+(1, 'System Administrator', 'admin', 'admin@blooddonation.com', '01700000000', '$2b$12$cJUy4JgrZkqJBldSDdB09ujr5ESv2K0zfq6KHVTrlXLM9yIRlap8G', 'admin', 'Dhaka Central'),
+(2, 'Rahim Uddin', 'user1', 'user1@blooddonation.com', '01811111111', '$2b$12$DxfuFaMnnzSXSVX62Q/EyukyzklUYg6qhoyEI6IDufu5nLF/r.dE.', 'requester', 'Mirpur'),
+(3, 'Karim Hossain', 'user2', 'user2@blooddonation.com', '01822222222', '$2b$12$DxfuFaMnnzSXSVX62Q/EyukyzklUYg6qhoyEI6IDufu5nLF/r.dE.', 'requester', 'Dhanmondi'),
+(4, 'Sumaiya Akter', 'user3', 'user3@blooddonation.com', '01833333333', '$2b$12$DxfuFaMnnzSXSVX62Q/EyukyzklUYg6qhoyEI6IDufu5nLF/r.dE.', 'requester', 'Gulshan')
+ON DUPLICATE KEY UPDATE `hash_password`=VALUES(`hash_password`);
+
+-- Seed Data: 40 Donors across Dhaka areas
+INSERT INTO `donors` (`id`, `name`, `blood_group`, `phone`, `location`, `age`, `gender`, `availability`, `verified`, `last_donation_date`) VALUES
+(1, 'Donor 1 (A+)', 'A+', '01710101001', 'Mirpur', 26, 'Male', 1, 1, DATE_SUB(NOW(), INTERVAL 90 DAY)),
+(2, 'Donor 2 (A+)', 'A+', '01710102001', 'Dhanmondi', 24, 'Female', 1, 1, DATE_SUB(NOW(), INTERVAL 120 DAY)),
+(3, 'Donor 3 (A+)', 'A+', '01710103001', 'Gulshan', 30, 'Male', 1, 1, DATE_SUB(NOW(), INTERVAL 60 DAY)),
+(4, 'Donor 4 (A+)', 'A+', '01710104001', 'Uttara', 28, 'Female', 1, 1, DATE_SUB(NOW(), INTERVAL 150 DAY)),
+(5, 'Donor 5 (A+)', 'A+', '01710105001', 'Mohammadpur', 32, 'Male', 1, 1, DATE_SUB(NOW(), INTERVAL 45 DAY)),
+(6, 'Donor 1 (A-)', 'A-', '01710201001', 'Mirpur', 29, 'Male', 1, 1, DATE_SUB(NOW(), INTERVAL 110 DAY)),
+(7, 'Donor 2 (A-)', 'A-', '01710202001', 'Dhanmondi', 27, 'Female', 1, 1, DATE_SUB(NOW(), INTERVAL 75 DAY)),
+(8, 'Donor 3 (A-)', 'A-', '01710203001', 'Gulshan', 33, 'Male', 1, 1, DATE_SUB(NOW(), INTERVAL 180 DAY)),
+(9, 'Donor 4 (A-)', 'A-', '01710204001', 'Uttara', 25, 'Female', 1, 1, DATE_SUB(NOW(), INTERVAL 95 DAY)),
+(10, 'Donor 5 (A-)', 'A-', '01710205001', 'Mohammadpur', 31, 'Male', 1, 1, DATE_SUB(NOW(), INTERVAL 50 DAY)),
+(11, 'Donor 1 (B+)', 'B+', '01710301001', 'Mirpur', 25, 'Male', 1, 1, DATE_SUB(NOW(), INTERVAL 80 DAY)),
+(12, 'Donor 2 (B+)', 'B+', '01710302001', 'Dhanmondi', 23, 'Female', 1, 1, DATE_SUB(NOW(), INTERVAL 140 DAY)),
+(13, 'Donor 3 (B+)', 'B+', '01710303001', 'Gulshan', 35, 'Male', 1, 1, DATE_SUB(NOW(), INTERVAL 65 DAY)),
+(14, 'Donor 4 (B+)', 'B+', '01710304001', 'Uttara', 27, 'Female', 1, 1, DATE_SUB(NOW(), INTERVAL 160 DAY)),
+(15, 'Donor 5 (B+)', 'B+', '01710305001', 'Mohammadpur', 29, 'Male', 1, 1, DATE_SUB(NOW(), INTERVAL 40 DAY)),
+(16, 'Donor 1 (B-)', 'B-', '01710401001', 'Mirpur', 34, 'Male', 1, 1, DATE_SUB(NOW(), INTERVAL 100 DAY)),
+(17, 'Donor 2 (B-)', 'B-', '01710402001', 'Dhanmondi', 26, 'Female', 1, 1, DATE_SUB(NOW(), INTERVAL 85 DAY)),
+(18, 'Donor 3 (B-)', 'B-', '01710403001', 'Gulshan', 31, 'Male', 1, 1, DATE_SUB(NOW(), INTERVAL 190 DAY)),
+(19, 'Donor 4 (B-)', 'B-', '01710404001', 'Uttara', 24, 'Female', 1, 1, DATE_SUB(NOW(), INTERVAL 70 DAY)),
+(20, 'Donor 5 (B-)', 'B-', '01710405001', 'Mohammadpur', 36, 'Male', 1, 1, DATE_SUB(NOW(), INTERVAL 55 DAY)),
+(21, 'Donor 1 (AB+)', 'AB+', '01710501001', 'Mirpur', 28, 'Male', 1, 1, DATE_SUB(NOW(), INTERVAL 90 DAY)),
+(22, 'Donor 2 (AB+)', 'AB+', '01710502001', 'Dhanmondi', 25, 'Female', 1, 1, DATE_SUB(NOW(), INTERVAL 130 DAY)),
+(23, 'Donor 3 (AB+)', 'AB+', '01710503001', 'Gulshan', 32, 'Male', 1, 1, DATE_SUB(NOW(), INTERVAL 60 DAY)),
+(24, 'Donor 4 (AB+)', 'AB+', '01710504001', 'Uttara', 29, 'Female', 1, 1, DATE_SUB(NOW(), INTERVAL 170 DAY)),
+(25, 'Donor 5 (AB+)', 'AB+', '01710505001', 'Mohammadpur', 27, 'Male', 1, 1, DATE_SUB(NOW(), INTERVAL 45 DAY)),
+(26, 'Donor 1 (AB-)', 'AB-', '01710601001', 'Mirpur', 30, 'Male', 1, 1, DATE_SUB(NOW(), INTERVAL 115 DAY)),
+(27, 'Donor 2 (AB-)', 'AB-', '01710602001', 'Dhanmondi', 28, 'Female', 1, 1, DATE_SUB(NOW(), INTERVAL 80 DAY)),
+(28, 'Donor 3 (AB-)', 'AB-', '01710603001', 'Gulshan', 34, 'Male', 1, 1, DATE_SUB(NOW(), INTERVAL 200 DAY)),
+(29, 'Donor 4 (AB-)', 'AB-', '01710604001', 'Uttara', 26, 'Female', 1, 1, DATE_SUB(NOW(), INTERVAL 105 DAY)),
+(30, 'Donor 5 (AB-)', 'AB-', '01710605001', 'Mohammadpur', 33, 'Male', 1, 1, DATE_SUB(NOW(), INTERVAL 50 DAY)),
+(31, 'Donor 1 (O+)', 'O+', '01710701001', 'Mirpur', 27, 'Male', 1, 1, DATE_SUB(NOW(), INTERVAL 85 DAY)),
+(32, 'Donor 2 (O+)', 'O+', '01710702001', 'Dhanmondi', 24, 'Female', 1, 1, DATE_SUB(NOW(), INTERVAL 145 DAY)),
+(33, 'Donor 3 (O+)', 'O+', '01710703001', 'Gulshan', 29, 'Male', 1, 1, DATE_SUB(NOW(), INTERVAL 60 DAY)),
+(34, 'Donor 4 (O+)', 'O+', '01710704001', 'Uttara', 31, 'Female', 1, 1, DATE_SUB(NOW(), INTERVAL 175 DAY)),
+(35, 'Donor 5 (O+)', 'O+', '01710705001', 'Mohammadpur', 26, 'Male', 1, 1, DATE_SUB(NOW(), INTERVAL 35 DAY)),
+(36, 'Donor 1 (O-)', 'O-', '01710801001', 'Mirpur', 35, 'Male', 1, 1, DATE_SUB(NOW(), INTERVAL 120 DAY)),
+(37, 'Donor 2 (O-)', 'O-', '01710802001', 'Dhanmondi', 27, 'Female', 1, 1, DATE_SUB(NOW(), INTERVAL 90 DAY)),
+(38, 'Donor 3 (O-)', 'O-', '01710803001', 'Gulshan', 32, 'Male', 1, 1, DATE_SUB(NOW(), INTERVAL 210 DAY)),
+(39, 'Donor 4 (O-)', 'O-', '01710804001', 'Uttara', 25, 'Female', 1, 1, DATE_SUB(NOW(), INTERVAL 100 DAY)),
+(40, 'Donor 5 (O-)', 'O-', '01710805001', 'Mohammadpur', 30, 'Male', 1, 1, DATE_SUB(NOW(), INTERVAL 45 DAY))
+ON DUPLICATE KEY UPDATE `id`=`id`;
+
+-- Sample Blood Requests
+INSERT INTO `blood_requests` (`id`, `requester_id`, `title`, `patient_name`, `blood_group`, `required_bags`, `hospital_name`, `hospital_location`, `required_date`, `contact_number`, `urgency`, `additional_info`, `status`, `accepted_donor_id`) VALUES
+(1, 2, 'Urgent B+ Blood for Heart Surgery', 'Abdur Rashid', 'B+', 2, 'National Heart Foundation Hospital', 'Mirpur', 'Immediately', '01811111111', 'emergency', 'Emergency bypass surgery required.', 'pending', NULL),
+(2, 3, 'O+ Blood Required for Scheduled Surgery', 'Nasima Begum', 'O+', 1, 'Square Hospital', 'Dhanmondi', 'Tomorrow Morning', '01822222222', 'normal', 'Scheduled surgery tomorrow at 10:00 AM.', 'pending', NULL),
+(3, 4, 'A+ Platelets for Dengue Patient', 'Tanvir Islam', 'A+', 1, 'United Hospital', 'Gulshan', '2026-09-28', '01833333333', 'normal', 'Dengue patient platelet replacement.', 'donor_accepted', 3)
+ON DUPLICATE KEY UPDATE `id`=`id`;
