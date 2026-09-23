@@ -49,8 +49,8 @@ class BecomeDonorRequest(BaseModel):
     gender: Optional[str] = Field(default=None, description="Male, Female, Other")
     availability: Optional[bool] = Field(default=True, description="Availability toggle")
 
-# Direct donor registration using email as User ID
-@router.post("/register", status_code=status.HTTP_201_CREATED)
+# Backward compatibility alias for donor registration (hidden from Swagger; use /auth/register instead)
+@router.post("/register", status_code=status.HTTP_201_CREATED, include_in_schema=False)
 def register_donor(donor_data: DonorRegister, db: db_dependency):
     clean_email = donor_data.email.strip().lower()
     clean_bg = donor_data.blood_group.strip().upper()
@@ -163,8 +163,8 @@ def get_donor_dashboard(user: user_dependency, db: db_dependency):
         ]
     }
 
-# Create or activate donor profile for current logged-in user
-@router.post("/become-donor")
+# Create or activate donor profile for current logged-in user (hidden from Swagger; handled via PUT /me)
+@router.post("/become-donor", include_in_schema=False)
 def become_or_activate_donor(user: user_dependency, db: db_dependency, donor_data: BecomeDonorRequest):
     db_user = db.query(Users).filter(Users.id == user["id"]).first()
     if not db_user:
