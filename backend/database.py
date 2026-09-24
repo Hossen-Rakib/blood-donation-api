@@ -11,7 +11,9 @@ load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
 load_dotenv()
 
 # Render sets DATABASE_URL in environment; for local dev set it in .env file
-SQLALCHEMY_DATABASE_URL = os.getenv('DATABASE_URL', '').strip()
+# Production PostgreSQL fallback (Render blood-donation-db)
+_RENDER_PG_URL = 'postgresql://blood_donation_db_9zit_user:1DFwJQZME1PmzZqHRbzk8r1SzSdLZ62u@dpg-daps1gu7bikc738k1ieg-a.singapore-postgres.render.com/blood_donation_db_9zit'
+SQLALCHEMY_DATABASE_URL = os.getenv('DATABASE_URL', _RENDER_PG_URL).strip()
 
 # Render provides URLs starting with 'postgres://', SQLAlchemy needs 'postgresql://'
 if SQLALCHEMY_DATABASE_URL.startswith("postgres://"):
