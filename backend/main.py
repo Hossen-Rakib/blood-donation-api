@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
 import os
+import bcrypt
 
 import models
 from models import Users, Donors, BloodRequests
@@ -12,13 +13,8 @@ from fastapi.responses import JSONResponse, RedirectResponse
 from router import auth, admin, donor, requester
 from router.auth import get_current_user
 
-# Import Password Hashing Context
-from passlib.context import CryptContext
-
 # Import Seed Data Function
 from demo_data import seed_demo_donors
-
-bcrypt_context = CryptContext(schemes=['bcrypt'], deprecated='auto')
 
 # Initialize FastAPI Application
 app = FastAPI(
@@ -31,17 +27,22 @@ app = FastAPI(
 @app.on_event("startup")
 def startup_event():
     # 1. Seed demo donors
-    seed_demo_donors()
+    try:
+        seed_demo_donors()
+    except Exception as e:
+        print(f"[ERROR Seed Donors]: {e}")
     
-    # 2. Ensure Admin user exists and has password 'admin123' on Live DB
+    # 2. Ensure Admin user exists and has password 'admin123' on Live DB using direct bcrypt
     db = sessionLocal()
     try:
         ADMIN_EMAIL = "admin@bloodbridge.com"
         ADMIN_USERNAME = "admin"
         ADMIN_PASSWORD = "admin123"
 
-        # Fix: Ensure password is string and truncated to safe length under 72 bytes for bcrypt
-        safe_password = str(ADMIN_PASSWORD)[:72]
+        # Safely truncate UTF-8 encoded bytes to 72 bytes limit for bcrypt
+        pwd_bytes = ADMIN_PASSWORD.encode('utf-8')[:72]
+        salt = bcrypt.gensalt()
+        hashed_pw = bcrypt.hashpw(pwd_bytes, salt).decode('utf-8')
 
         existing = db.query(Users).filter(
             (Users.email == ADMIN_EMAIL) | (Users.username == ADMIN_USERNAME)
@@ -49,7 +50,7 @@ def startup_event():
 
         if existing:
             existing.role = 'admin'
-            existing.hash_password = bcrypt_context.hash(safe_password)
+            existing.hash_password = hashed_pw
             db.commit()
             print(f"[OK] Admin '{existing.username}' updated with password '{ADMIN_PASSWORD}' on startup.")
         else:
@@ -58,7 +59,7 @@ def startup_event():
                 email=ADMIN_EMAIL,
                 username=ADMIN_USERNAME,
                 phone="01700000000",
-                hash_password=bcrypt_context.hash(safe_password),
+                hash_password=hashed_pw,
                 role='admin',
                 location='Dhaka',
                 is_active=True,

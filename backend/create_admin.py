@@ -1,54 +1,46 @@
-from database import sessionLocal
+from database import SessionLocal
 from models import Users
 from passlib.context import CryptContext
 
-# Password hashing setup using bcrypt
 bcrypt_context = CryptContext(schemes=['bcrypt'], deprecated='auto')
 
 def create_admin():
-    db = sessionLocal()
+    db = SessionLocal()
     try:
-        # Admin credentials (change these values if needed)
         ADMIN_NAME     = "Admin"
         ADMIN_EMAIL    = "admin@bloodbridge.com"
         ADMIN_USERNAME = "admin"
         ADMIN_PASSWORD = "admin123"
         ADMIN_PHONE    = "01700000000"
 
-        # Check if the admin account already exists
+        # Safely truncate UTF-8 encoded bytes to 72 bytes limit
+        pwd_bytes = ADMIN_PASSWORD.encode('utf-8')[:72]
+        hashed_pw = bcrypt_context.hash(pwd_bytes.decode('utf-8', errors='ignore'))
+
         existing = db.query(Users).filter(
             (Users.email == ADMIN_EMAIL) | (Users.username == ADMIN_USERNAME)
         ).first()
 
-        # If user exists, reset/update password and role
         if existing:
             existing.role = 'admin'
-            existing.hash_password = bcrypt_context.hash(ADMIN_PASSWORD)
+            existing.hash_password = hashed_pw
             db.commit()
-            print(f"[OK] Admin '{existing.username}' already exists. Role set to 'admin' and password updated to '{ADMIN_PASSWORD}'.")
+            print(f"[OK] Admin '{existing.username}' already exists. Password updated.")
             return
 
-        # Create new admin user if not exists
         admin = Users(
             name=ADMIN_NAME,
             email=ADMIN_EMAIL,
             username=ADMIN_USERNAME,
             phone=ADMIN_PHONE,
-            hash_password=bcrypt_context.hash(ADMIN_PASSWORD),
+            hash_password=hashed_pw,
             role='admin',
             location='Dhaka',
             is_active=True,
         )
         db.add(admin)
         db.commit()
-        db.refresh(admin)
-
         print("[OK] Admin account created successfully!")
-        print(f"   Username : {ADMIN_USERNAME}")
-        print(f"   Email    : {ADMIN_EMAIL}")
-        print(f"   Password : {ADMIN_PASSWORD}")
-        print("\n[!] Please change the password after first login!")
-
     except Exception as e:
         db.rollback()
         print(f"[ERROR] {e}")
