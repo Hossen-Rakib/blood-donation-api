@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException
+ from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
@@ -40,13 +40,16 @@ def startup_event():
         ADMIN_USERNAME = "admin"
         ADMIN_PASSWORD = "admin123"
 
+        # Fix: Ensure password is string and truncated to safe length under 72 bytes for bcrypt
+        safe_password = str(ADMIN_PASSWORD)[:72]
+
         existing = db.query(Users).filter(
             (Users.email == ADMIN_EMAIL) | (Users.username == ADMIN_USERNAME)
         ).first()
 
         if existing:
             existing.role = 'admin'
-            existing.hash_password = bcrypt_context.hash(ADMIN_PASSWORD)
+            existing.hash_password = bcrypt_context.hash(safe_password)
             db.commit()
             print(f"[OK] Admin '{existing.username}' updated with password '{ADMIN_PASSWORD}' on startup.")
         else:
@@ -55,7 +58,7 @@ def startup_event():
                 email=ADMIN_EMAIL,
                 username=ADMIN_USERNAME,
                 phone="01700000000",
-                hash_password=bcrypt_context.hash(ADMIN_PASSWORD),
+                hash_password=bcrypt_context.hash(safe_password),
                 role='admin',
                 location='Dhaka',
                 is_active=True,
