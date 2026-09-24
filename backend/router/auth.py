@@ -33,9 +33,14 @@ def hash_password_func(password: str) -> str:
     return bcrypt.hashpw(pwd_bytes, salt).decode('utf-8')
 
 def verify_password_func(plain_password: str, hashed_password: str) -> bool:
-    pwd_bytes = plain_password.encode('utf-8')[:72]
-    hashed_bytes = hashed_password.encode('utf-8')
     try:
+        pwd_bytes = plain_password.encode('utf-8')[:72]
+        # Ensure hashed_password is converted to bytes safely
+        if isinstance(hashed_password, str):
+            hashed_bytes = hashed_password.encode('utf-8')
+        else:
+            hashed_bytes = hashed_password
+            
         return bcrypt.checkpw(pwd_bytes, hashed_bytes)
     except Exception:
         return False
