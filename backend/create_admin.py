@@ -1,14 +1,4 @@
-"""
-Admin Creation Script
-=====================
-Run this ONCE to create the first admin account.
-
-Usage (from the backend/ folder):
-    python create_admin.py
-
-After the first admin is created, you can promote other users
-to admin from the Admin Panel -> Manage Users -> Make Admin button.
-"""
+# Admin creation script
 
 from database import sessionLocal
 from models import Users

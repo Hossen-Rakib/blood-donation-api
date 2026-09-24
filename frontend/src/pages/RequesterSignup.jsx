@@ -44,19 +44,19 @@ const RequesterSignup = () => {
             }
         } catch (error) {
             console.error('Signup error:', error);
-            toast.error('Network error! Make sure the backend is running.');
+            toast.error('Network error! Please check your internet connection and try again.');
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <div className="hero bg-base-200 min-h-screen py-10">
-            <div className="hero-content flex-col w-full">
-                <div className="text-center">
-                    <div className="text-5xl mb-3">👤</div>
-                    <h1 className="text-4xl font-bold">Create Account</h1>
-                    <p className="py-4 text-gray-500">
+        <div className="hero bg-base-200 min-h-screen py-6 sm:py-10 px-3 sm:px-4">
+            <div className="hero-content flex-col w-full max-w-lg p-0">
+                <div className="text-center px-2">
+                    <div className="text-4xl sm:text-5xl mb-2 sm:mb-3">👤</div>
+                    <h1 className="text-3xl sm:text-4xl font-bold">Create Account</h1>
+                    <p className="py-2 sm:py-4 text-gray-500 text-sm sm:text-base">
                         Blood request করার জন্য account তৈরি করুন।
                     </p>
                     <p className="text-sm">
@@ -67,8 +67,8 @@ const RequesterSignup = () => {
                     </p>
                 </div>
 
-                <div className="card bg-base-100 w-full max-w-sm shrink-0 shadow-2xl">
-                    <div className="card-body">
+                <div className="card bg-base-100 w-full max-w-sm shrink-0 shadow-xl border border-base-200">
+                    <div className="card-body p-4 sm:p-7">
                         <fieldset className="fieldset">
 
                             <label className="label">Full Name</label>

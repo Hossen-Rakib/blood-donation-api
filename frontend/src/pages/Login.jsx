@@ -70,7 +70,7 @@ const Login = () => {
 
         } catch (error) {
             console.error('Login error:', error);
-            toast.error('Network error! Make sure the backend is running.');
+            toast.error('Network error! Please check your internet connection and try again.');
         } finally {
             setLoading(false);
         }
@@ -81,17 +81,17 @@ const Login = () => {
     };
 
     return (
-        <div className="hero bg-base-200 min-h-screen">
-            <div className="hero-content flex-col">
+        <div className="hero bg-base-200 min-h-screen py-6 sm:py-10 px-3 sm:px-4">
+            <div className="hero-content flex-col w-full max-w-md p-0">
                 <div className="text-center">
-                    <div className="text-5xl mb-3">🩸</div>
-                    <h1 className="text-4xl font-bold text-red-600">Login</h1>
-                    <p className="py-4 text-gray-500">
+                    <div className="text-4xl sm:text-5xl mb-2 sm:mb-3">🩸</div>
+                    <h1 className="text-3xl sm:text-4xl font-bold text-red-600">Login</h1>
+                    <p className="py-2 sm:py-4 text-gray-500 text-sm sm:text-base">
                         আপনার account এ login করুন।
                     </p>
                 </div>
-                <div className="card bg-base-100 w-full max-w-sm shrink-0 shadow-2xl">
-                    <div className="card-body">
+                <div className="card bg-base-100 w-full max-w-sm shrink-0 shadow-xl border border-base-200">
+                    <div className="card-body p-5 sm:p-8">
                         <fieldset className="fieldset">
                             <label className="label">Username / Email</label>
                             <input

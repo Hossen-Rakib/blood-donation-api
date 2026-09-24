@@ -30,27 +30,27 @@ const DonorProfile = () => {
     );
 
     return (
-        <div className="min-h-screen bg-base-200 py-10 px-4">
+        <div className="min-h-screen bg-base-200 py-6 sm:py-10 px-3 sm:px-4">
             <div className="max-w-2xl mx-auto">
 
                 {/* Profile Card */}
-                <div className="card bg-base-100 shadow-lg overflow-hidden">
+                <div className="card bg-base-100 shadow-lg overflow-hidden border border-base-200">
                     {/* Header */}
-                    <div className="bg-gradient-to-r from-red-500 to-red-700 px-8 py-8">
-                        <div className="flex items-center gap-5">
-                            <div className="w-20 h-20 rounded-full bg-white/20 border-2 border-white/50 flex items-center justify-center text-white text-3xl font-bold">
+                    <div className="bg-gradient-to-r from-red-500 to-red-700 px-4 sm:px-8 py-6 sm:py-8">
+                        <div className="flex flex-col sm:flex-row items-center sm:items-start text-center sm:text-left gap-4 sm:gap-5">
+                            <div className="w-16 sm:w-20 h-16 sm:h-20 rounded-full bg-white/20 border-2 border-white/50 flex items-center justify-center text-white text-2xl sm:text-3xl font-bold shrink-0">
                                 {donor.name?.charAt(0)}
                             </div>
                             <div className="text-white">
-                                <h2 className="text-2xl font-bold flex items-center gap-2">
+                                <h2 className="text-xl sm:text-2xl font-bold flex items-center justify-center sm:justify-start gap-2">
                                     {donor.name}
-                                    {donor.verified && <FaCheckCircle className="text-green-300 text-lg" title="Verified" />}
+                                    {donor.verified && <FaCheckCircle className="text-green-300 text-base sm:text-lg" title="Verified" />}
                                 </h2>
-                                <div className="flex items-center gap-3 mt-2">
-                                    <span className="badge badge-lg bg-white text-red-600 font-bold">
+                                <div className="flex items-center justify-center sm:justify-start gap-2 sm:gap-3 mt-2 flex-wrap">
+                                    <span className="badge badge-md sm:badge-lg bg-white text-red-600 font-bold">
                                         <FaTint className="mr-1" /> {donor.blood_group}
                                     </span>
-                                    <span className={`badge ${donor.availability ? 'badge-success' : 'badge-error'}`}>
+                                    <span className={`badge badge-sm sm:badge-md ${donor.availability ? 'badge-success' : 'badge-error'}`}>
                                         {donor.availability ? 'Available' : 'Not Available'}
                                     </span>
                                 </div>

@@ -1,6 +1,4 @@
 -- Blood Donation Platform MySQL Database Script
--- Schema + 40 Donors + Donation History + Demo Requesters + Admin
--- Workbench Passwords: Rakib12043 / Rakib125043
 
 CREATE DATABASE IF NOT EXISTS `blood_donation_db`
   CHARACTER SET utf8mb4

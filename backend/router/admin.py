@@ -239,7 +239,6 @@ def delete_blood_request_admin(request_id: int, user: user_dependency, db: db_de
 # Promote an existing user to admin role (only current admin can do this)
 @router.put("/users/{user_id}/promote-admin")
 def promote_user_to_admin(user_id: int, user: user_dependency, db: db_dependency):
-    """Promote a regular user to admin role. Only existing admins can call this."""
     require_admin(user)
     target = db.query(Users).filter(Users.id == user_id).first()
     if not target:
@@ -257,7 +256,6 @@ def promote_user_to_admin(user_id: int, user: user_dependency, db: db_dependency
 # Demote admin back to regular user
 @router.put("/users/{user_id}/demote-admin")
 def demote_admin_to_user(user_id: int, user: user_dependency, db: db_dependency):
-    """Demote an admin back to regular user role."""
     require_admin(user)
     if user.get("id") == user_id:
         raise HTTPException(status_code=400, detail="You cannot demote yourself")

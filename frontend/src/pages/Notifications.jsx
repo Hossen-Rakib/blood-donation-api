@@ -58,19 +58,19 @@ const Notifications = () => {
     );
 
     return (
-        <div className="min-h-screen bg-base-200 py-8 px-4">
+        <div className="min-h-screen bg-base-200 py-6 sm:py-8 px-3 sm:px-4">
             <div className="max-w-3xl mx-auto">
 
                 {/* Header */}
-                <div className="flex items-center justify-between mb-6">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6">
                     <div>
-                        <h1 className="text-3xl font-bold text-base-content">🔔 Notifications</h1>
+                        <h1 className="text-2xl sm:text-3xl font-bold text-base-content">🔔 Notifications</h1>
                         {unreadCount > 0 && (
                             <span className="badge badge-error mt-1">{unreadCount} unread</span>
                         )}
                     </div>
                     {unreadCount > 0 && (
-                        <button onClick={handleMarkAllRead} className="btn btn-sm btn-outline">
+                        <button onClick={handleMarkAllRead} className="btn btn-xs sm:btn-sm btn-outline">
                             Mark all as read
                         </button>
                     )}

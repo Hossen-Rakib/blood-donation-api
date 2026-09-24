@@ -67,27 +67,27 @@ const DonorDashboard = () => {
     );
 
     return (
-        <div className="min-h-screen bg-base-200 py-8 px-4">
+        <div className="min-h-screen bg-base-200 py-6 sm:py-8 px-3 sm:px-4">
             <div className="max-w-5xl mx-auto">
 
                 {/* Header */}
-                <div className="flex flex-wrap justify-between items-center gap-4 mb-6">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                     <div>
-                        <h1 className="text-3xl font-bold text-base-content">🩸 Donor Dashboard</h1>
-                        <p className="text-gray-500 mt-1">Welcome, {donorData.name}! আপনার donation activity এখানে দেখুন।</p>
+                        <h1 className="text-2xl sm:text-3xl font-bold text-base-content">🩸 Donor Dashboard</h1>
+                        <p className="text-gray-500 mt-1 text-sm sm:text-base">Welcome, {donorData.name}! আপনার donation activity এখানে দেখুন।</p>
                     </div>
-                    <div className="flex gap-2">
-                        <Link to="/find-donors" className="btn btn-error text-white btn-sm">
-                            🔍 Browse All Donors
+                    <div className="flex flex-wrap gap-2">
+                        <Link to="/find-donors" className="btn btn-error text-white btn-xs sm:btn-sm">
+                            🔍 Browse Donors
                         </Link>
-                        <Link to="/open-requests" className="btn btn-outline btn-error btn-sm">
-                            🆘 View Blood Requests
+                        <Link to="/open-requests" className="btn btn-outline btn-error btn-xs sm:btn-sm">
+                            🆘 Blood Requests
                         </Link>
                     </div>
                 </div>
 
                 {/* Profile + Stats Row */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5 mb-8">
 
                     {/* Profile Card */}
                     <div className="card bg-base-100 shadow-sm md:col-span-1">

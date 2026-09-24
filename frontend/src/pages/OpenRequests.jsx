@@ -50,16 +50,16 @@ const OpenRequests = () => {
     const handleSearch = () => { setPage(1); fetchRequests(1); };
 
     return (
-        <div className="min-h-screen bg-base-200 py-8 px-4">
+        <div className="min-h-screen bg-base-200 py-6 sm:py-8 px-3 sm:px-4">
             <div className="max-w-5xl mx-auto">
 
                 {/* Header */}
-                <div className="mb-8 text-center">
-                    <h1 className="text-4xl font-bold text-red-600">🆘 Open Blood Requests</h1>
-                    <p className="text-gray-500 mt-2">
+                <div className="mb-6 sm:mb-8 text-center px-2">
+                    <h1 className="text-2xl sm:text-4xl font-bold text-red-600">🆘 Open Blood Requests</h1>
+                    <p className="text-gray-500 mt-2 text-sm sm:text-base">
                         বাংলাদেশে রক্তের চাহিদা রয়েছে — আপনি সাহায্য করতে পারেন!
                     </p>
-                    <Link to="/create-request" className="btn btn-error text-white mt-4">
+                    <Link to="/create-request" className="btn btn-error text-white mt-4 btn-sm sm:btn-md">
                         + Create Blood Request
                     </Link>
                 </div>
@@ -128,7 +128,7 @@ const OpenRequests = () => {
                                         <span className="badge badge-error badge-lg font-bold">{req.blood_group}</span>
                                     </div>
 
-                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-3 text-sm text-gray-600">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 sm:gap-3 mt-3 text-sm text-gray-600">
                                         <div>🏥 <strong>{req.hospital_name}</strong></div>
                                         <div>📍 {req.hospital_location}</div>
                                         <div>📅 {req.required_date}</div>

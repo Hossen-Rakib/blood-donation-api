@@ -62,15 +62,15 @@ const MyBloodRequests = () => {
     );
 
     return (
-        <div className="min-h-screen bg-base-200 py-8 px-4">
+        <div className="min-h-screen bg-base-200 py-6 sm:py-8 px-3 sm:px-4">
             <div className="max-w-5xl mx-auto">
 
-                <div className="flex items-center justify-between mb-8">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6 sm:mb-8">
                     <div>
-                        <h1 className="text-3xl font-bold text-base-content">My Blood Requests</h1>
-                        <p className="text-gray-500 mt-1">আপনার সমস্ত blood request এর তালিকা।</p>
+                        <h1 className="text-2xl sm:text-3xl font-bold text-base-content">My Blood Requests</h1>
+                        <p className="text-gray-500 mt-1 text-sm sm:text-base">আপনার সমস্ত blood request এর তালিকা।</p>
                     </div>
-                    <Link to="/create-request" className="btn btn-error text-white">
+                    <Link to="/create-request" className="btn btn-error text-white btn-sm sm:btn-md">
                         + New Request
                     </Link>
                 </div>
@@ -79,7 +79,7 @@ const MyBloodRequests = () => {
                     <div className="text-center py-16">
                         <div className="text-5xl mb-4">📋</div>
                         <p className="text-gray-500 text-lg">You haven&apos;t made any blood requests yet.</p>
-                        <Link to="/create-request" className="btn btn-error text-white mt-4">
+                        <Link to="/create-request" className="btn btn-error text-white mt-4 btn-sm sm:btn-md">
                             Create First Request
                         </Link>
                     </div>
@@ -87,14 +87,14 @@ const MyBloodRequests = () => {
                     <div className="space-y-4">
                         {requests.map(req => (
                             <div key={req.id} className={`card bg-base-100 shadow-sm border-l-4 ${req.urgency === 'emergency' ? 'border-red-500' : 'border-orange-300'}`}>
-                                <div className="card-body p-5">
+                                <div className="card-body p-4 sm:p-5">
                                     <div className="flex flex-wrap items-start justify-between gap-3">
                                         <div>
-                                            <h3 className="font-bold text-lg">
+                                            <h3 className="font-bold text-base sm:text-lg">
                                                 {req.urgency === 'emergency' && <span className="badge badge-error mr-2">🚨</span>}
                                                 {req.title || `${req.blood_group} Blood Request`}
                                             </h3>
-                                            <p className="text-sm text-gray-500">Patient: <strong>{req.patient_name}</strong> • #{req.id}</p>
+                                            <p className="text-xs sm:text-sm text-gray-500">Patient: <strong>{req.patient_name}</strong> • #{req.id}</p>
                                         </div>
                                         <div className="flex gap-2 flex-wrap">
                                             <span className="badge badge-error font-bold">{req.blood_group}</span>
@@ -104,7 +104,7 @@ const MyBloodRequests = () => {
                                         </div>
                                     </div>
 
-                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-3 text-sm text-gray-600">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 mt-3 text-sm text-gray-600">
                                         <div>🏥 {req.hospital_name}</div>
                                         <div>📍 {req.hospital_location}</div>
                                         <div>📅 {req.required_date}</div>

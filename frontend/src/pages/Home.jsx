@@ -23,35 +23,35 @@ const Home = () => {
     return (
         <div>
             {/* Hero Section */}
-            <div className="hero bg-gradient-to-br from-red-50 to-red-100 min-h-[60vh] py-10">
-                <div className="hero-content text-center flex-col">
-                    <div className="text-6xl mb-4">🩸</div>
-                    <h1 className="text-5xl font-bold text-red-700">
+            <div className="hero bg-gradient-to-br from-red-50 to-red-100 min-h-[55vh] sm:min-h-[60vh] py-8 sm:py-12 px-4">
+                <div className="hero-content text-center flex-col max-w-2xl mx-auto px-2">
+                    <div className="text-5xl sm:text-6xl mb-2 sm:mb-4">🩸</div>
+                    <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-red-700 leading-tight">
                         Save a Life Today
                     </h1>
-                    <p className="py-4 text-lg text-gray-600 max-w-xl">
+                    <p className="py-3 sm:py-4 text-base sm:text-lg text-gray-600 max-w-xl mx-auto leading-relaxed">
                         বাংলাদেশের যেকোনো জেলায় রক্তদাতা খুঁজুন অথবা রক্তের অনুরোধ করুন। 
                         প্রতিটি রক্তদান একটি জীবন বাঁচাতে পারে।
                     </p>
-                    <div className="flex flex-wrap gap-4 justify-center">
+                    <div className="flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-4 justify-center items-stretch sm:items-center w-full max-w-md sm:max-w-none pt-2">
                         {authUser ? (
                             <>
-                                <Link to="/find-donors" className="btn btn-error text-white btn-lg shadow-md">
+                                <Link to="/find-donors" className="btn btn-error text-white btn-md sm:btn-lg shadow-md flex items-center justify-center gap-2">
                                     <FaSearch /> Find Donors
                                 </Link>
-                                <Link to="/open-requests" className="btn btn-outline btn-error btn-lg">
+                                <Link to="/open-requests" className="btn btn-outline btn-error btn-md sm:btn-lg flex items-center justify-center gap-2">
                                     <FaTint /> Blood Requests
                                 </Link>
-                                <Link to="/create-request" className="btn btn-neutral btn-lg text-white">
+                                <Link to="/create-request" className="btn btn-neutral btn-md sm:btn-lg text-white flex items-center justify-center gap-2">
                                     <FaHospital /> Need Blood
                                 </Link>
                             </>
                         ) : (
                             <>
-                                <Link to="/login" className="btn btn-error text-white btn-lg shadow-md">
+                                <Link to="/login" className="btn btn-error text-white btn-md sm:btn-lg shadow-md flex items-center justify-center gap-2">
                                     <FaLock className="mr-1" /> Login
                                 </Link>
-                                <Link to="/signup" className="btn btn-outline btn-error btn-lg">
+                                <Link to="/signup" className="btn btn-outline btn-error btn-md sm:btn-lg flex items-center justify-center gap-2">
                                     <FaHandHoldingHeart /> Sign Up
                                 </Link>
                             </>
@@ -96,16 +96,16 @@ const Home = () => {
             {authUser ? (
                 <div className="py-12 bg-base-100 border-t border-base-200">
                     <div className="max-w-6xl mx-auto px-4">
-                        <div className="flex justify-between items-center mb-8">
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-8">
                             <div>
-                                <h2 className="text-3xl font-bold text-red-600 flex items-center gap-2">
+                                <h2 className="text-2xl sm:text-3xl font-bold text-red-600 flex items-center gap-2">
                                     🩸 Available Blood Donors
                                 </h2>
                                 <p className="text-gray-500 text-sm mt-1">
                                     বর্তমানে সক্রিয় ও রক্তদানে প্রস্তুত ডোনারগণ
                                 </p>
                             </div>
-                            <Link to="/find-donors" className="btn btn-error text-white btn-sm flex items-center gap-1">
+                            <Link to="/find-donors" className="btn btn-error text-white btn-sm flex items-center gap-1 self-start sm:self-auto">
                                 View All Donors <FaArrowRight />
                             </Link>
                         </div>
@@ -158,22 +158,22 @@ const Home = () => {
                 <p className="mb-6 text-red-100">
                     Register as a donor today and help someone in need.
                 </p>
-                <div className="flex flex-wrap gap-4 justify-center">
+                <div className="flex flex-col sm:flex-row flex-wrap gap-4 justify-center items-stretch sm:items-center max-w-md sm:max-w-none mx-auto">
                     {authUser ? (
                         <>
-                            <Link to="/donor-dashboard" className="btn bg-white text-red-600 hover:bg-red-50 btn-lg shadow-md font-bold">
+                            <Link to="/donor-dashboard" className="btn bg-white text-red-600 hover:bg-red-50 btn-md sm:btn-lg shadow-md font-bold">
                                 🩸 My Donor Dashboard
                             </Link>
-                            <Link to="/create-request" className="btn btn-outline border-white text-white hover:bg-white hover:text-red-600 btn-lg">
+                            <Link to="/create-request" className="btn btn-outline border-white text-white hover:bg-white hover:text-red-600 btn-md sm:btn-lg">
                                 🏥 Create Blood Request
                             </Link>
                         </>
                     ) : (
                         <>
-                            <Link to="/signup" className="btn bg-white text-red-600 hover:bg-red-50 btn-lg shadow-md font-bold">
+                            <Link to="/signup" className="btn bg-white text-red-600 hover:bg-red-50 btn-md sm:btn-lg shadow-md font-bold">
                                 🩸 Sign Up as Donor
                             </Link>
-                            <Link to="/login" className="btn btn-outline border-white text-white hover:bg-white hover:text-red-600 btn-lg">
+                            <Link to="/login" className="btn btn-outline border-white text-white hover:bg-white hover:text-red-600 btn-md sm:btn-lg">
                                 Login
                             </Link>
                         </>

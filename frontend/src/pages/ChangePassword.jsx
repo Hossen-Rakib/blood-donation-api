@@ -37,17 +37,17 @@ const ChangePassword = () => {
     };
 
     return (
-        <div className="hero bg-base-200 min-h-screen">
-            <div className="hero-content flex-col">
-                <div className="text-center">
-                    <div className="text-5xl mb-3">🔑</div>
-                    <h1 className="text-4xl font-bold">Reset Password</h1>
-                    <p className="py-4 text-gray-500">
+        <div className="hero bg-base-200 min-h-screen py-6 sm:py-10 px-3 sm:px-4">
+            <div className="hero-content flex-col w-full max-w-md p-0">
+                <div className="text-center px-2">
+                    <div className="text-4xl sm:text-5xl mb-2 sm:mb-3">🔑</div>
+                    <h1 className="text-3xl sm:text-4xl font-bold">Reset Password</h1>
+                    <p className="py-2 sm:py-4 text-gray-500 text-sm sm:text-base">
                         আপনার email address দিয়ে password reset করুন।
                     </p>
                 </div>
-                <div className="card bg-base-100 w-full max-w-sm shrink-0 shadow-2xl">
-                    <div className="card-body">
+                <div className="card bg-base-100 w-full max-w-sm shrink-0 shadow-xl border border-base-200">
+                    <div className="card-body p-4 sm:p-7">
                         {done ? (
                             <div className="text-center py-4">
                                 <div className="text-4xl mb-3">✅</div>

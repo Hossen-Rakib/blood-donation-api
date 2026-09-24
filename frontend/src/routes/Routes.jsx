@@ -27,14 +27,14 @@ const router = createBrowserRouter([
         path: '/',
         element: <Root />,
         children: [
-            // ─── Public Routes ───────────────────────────────────────
+            // Public Routes
             { path: '/',                  element: <Home /> },
             { path: '/login',             element: <Login /> },
             { path: '/signup',            element: <Signup /> },
             { path: '/donor-signup',      element: <DonorSignup /> },
             { path: '/requester-signup',  element: <RequesterSignup /> },
 
-            // ─── Protected Routes (Logged-in users only) ─────────────
+            // Protected Routes
             {
                 path: '/find-donors',
                 element: <PrivateRoutes><FindDonors /></PrivateRoutes>,
@@ -48,7 +48,7 @@ const router = createBrowserRouter([
                 element: <PrivateRoutes><OpenRequests /></PrivateRoutes>,
             },
 
-            // ─── Private Routes (any logged-in user) ─────────────────
+            // Private Routes
             {
                 path: '/donor-dashboard',
                 element: <PrivateRoutes><DonorDashboard /></PrivateRoutes>,
@@ -76,7 +76,7 @@ const router = createBrowserRouter([
         ],
     },
 
-    // ─── Admin Routes ─────────────────────────────────────────────────
+    // Admin Routes
     {
         path: '/admin',
         element: <AdminProtected><AdminLayout /></AdminProtected>,

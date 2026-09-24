@@ -30,7 +30,7 @@ async function request(endpoint, options = {}) {
         response = await fetch(url, config);
     } catch (networkError) {
         console.error('Network request failed:', networkError);
-        throw new Error('Network error: Backend server এ connect করা যাচ্ছে না।');
+        throw new Error('Network error: Server এ connect করা যাচ্ছে না। Internet connection চেক করুন।');
     }
 
     let data;
@@ -63,9 +63,7 @@ async function request(endpoint, options = {}) {
     return data;
 }
 
-// ─────────────────────────────────────────────────────────────
 // Auth API Endpoints
-// ─────────────────────────────────────────────────────────────
 export const authApi = {
     async login(username, password) {
         const formData = new URLSearchParams();
@@ -97,9 +95,7 @@ export const authApi = {
     },
 };
 
-// ─────────────────────────────────────────────────────────────
 // Donor API Endpoints
-// ─────────────────────────────────────────────────────────────
 export const donorApi = {
     async register(donorData) {
         return request('/auth/register', {
@@ -132,9 +128,7 @@ export const donorApi = {
     },
 };
 
-// ─────────────────────────────────────────────────────────────
 // Public & Requester API Endpoints
-// ─────────────────────────────────────────────────────────────
 export const publicApi = {
     async searchDonors(params = {}) {
         const query = new URLSearchParams();
@@ -200,9 +194,7 @@ export const notificationApi = {
     },
 };
 
-// ─────────────────────────────────────────────────────────────
 // Admin API Endpoints
-// ─────────────────────────────────────────────────────────────
 export const adminApi = {
     async getDashboard() {
         return request('/admin/dashboard', { method: 'GET' });

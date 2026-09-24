@@ -62,13 +62,13 @@ const UserProfile = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 py-10 px-4">
+        <div className="min-h-screen bg-gray-50 py-6 sm:py-10 px-3 sm:px-4">
             <div className="max-w-3xl mx-auto">
 
                 {/* Header */}
-                <div className="mb-8">
-                    <h1 className="text-3xl font-bold text-gray-900">My Profile</h1>
-                    <p className="text-gray-500 mt-1">
+                <div className="mb-6 sm:mb-8">
+                    <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">My Profile</h1>
+                    <p className="text-gray-500 mt-1 text-sm sm:text-base">
                         Manage your personal information and donor settings.
                     </p>
                 </div>
@@ -76,15 +76,15 @@ const UserProfile = () => {
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
 
                     {/* Profile Banner */}
-                    <div className="bg-gradient-to-r from-red-500 to-red-700 px-8 py-8">
-                        <div className="flex items-center gap-5">
-                            <div className="w-20 h-20 rounded-full bg-white/20 border-2 border-white/50 flex items-center justify-center text-white text-3xl font-bold">
+                    <div className="bg-gradient-to-r from-red-500 to-red-700 px-4 sm:px-8 py-6 sm:py-8">
+                        <div className="flex flex-col sm:flex-row items-center sm:items-start text-center sm:text-left gap-4 sm:gap-5">
+                            <div className="w-16 sm:w-20 h-16 sm:h-20 rounded-full bg-white/20 border-2 border-white/50 flex items-center justify-center text-white text-2xl sm:text-3xl font-bold shrink-0">
                                 {authUser?.name?.charAt(0)?.toUpperCase()}
                             </div>
                             <div className="text-white">
-                                <h2 className="text-2xl font-semibold">{authUser?.name}</h2>
-                                <p className="text-red-100">@{authUser?.username || authUser?.email}</p>
-                                <div className="flex items-center gap-2 mt-2 flex-wrap">
+                                <h2 className="text-xl sm:text-2xl font-semibold">{authUser?.name}</h2>
+                                <p className="text-red-100 text-sm sm:text-base">@{authUser?.username || authUser?.email}</p>
+                                <div className="flex items-center justify-center sm:justify-start gap-2 mt-2 flex-wrap">
                                     <span className="px-3 py-1 text-xs font-medium bg-white/20 rounded-full">
                                         {authUser?.role}
                                     </span>
@@ -104,7 +104,7 @@ const UserProfile = () => {
                     </div>
 
                     {/* Form */}
-                    <form onSubmit={handleUpdateProfile} className="p-8">
+                    <form onSubmit={handleUpdateProfile} className="p-4 sm:p-8">
                         <div className="mb-6">
                             <h3 className="text-lg font-semibold text-gray-900">Personal Information</h3>
                             <p className="text-sm text-gray-500 mt-1">Update your profile details.</p>

@@ -1,9 +1,10 @@
 import React from 'react';
 import { Link } from 'react-router';
 
+// Footer component
 const Footer = () => {
     return (
-        <footer className="footer sm:footer-horizontal bg-base-300 text-base-content p-10 mt-16">
+        <footer className="footer sm:footer-horizontal bg-base-300 text-base-content p-6 sm:p-10 mt-12 sm:mt-16">
             <nav>
                 <h6 className="footer-title">Blood Donation</h6>
                 <Link to="/find-donors" className="link link-hover">Find Donors</Link>

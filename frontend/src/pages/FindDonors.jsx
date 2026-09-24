@@ -47,13 +47,13 @@ const FindDonors = () => {
     };
 
     return (
-        <div className="min-h-screen bg-base-200 py-8 px-4">
+        <div className="min-h-screen bg-base-200 py-6 sm:py-8 px-3 sm:px-4">
             <div className="max-w-6xl mx-auto">
 
                 {/* Header */}
-                <div className="mb-8 text-center">
-                    <h1 className="text-4xl font-bold text-red-600">🩸 Find Blood Donors</h1>
-                    <p className="text-gray-500 mt-2">
+                <div className="mb-6 sm:mb-8 text-center px-2">
+                    <h1 className="text-2xl sm:text-4xl font-bold text-red-600">🩸 Find Blood Donors</h1>
+                    <p className="text-gray-500 mt-2 text-sm sm:text-base">
                         বাংলাদেশের যেকোনো জেলায় রক্তদাতা খুঁজুন — blood group এবং জেলা দিয়ে filter করুন।
                     </p>
                 </div>

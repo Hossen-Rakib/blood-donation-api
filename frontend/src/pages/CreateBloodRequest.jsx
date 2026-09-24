@@ -53,16 +53,16 @@ const CreateBloodRequest = () => {
     };
 
     return (
-        <div className="min-h-screen bg-base-200 py-10 px-4">
+        <div className="min-h-screen bg-base-200 py-6 sm:py-10 px-3 sm:px-4">
             <div className="max-w-2xl mx-auto">
 
-                <div className="mb-8">
-                    <h1 className="text-3xl font-bold text-red-600">🩸 Create Blood Request</h1>
-                    <p className="text-gray-500 mt-1">জরুরি রক্তের প্রয়োজন? এখনই request করুন।</p>
+                <div className="mb-6 sm:mb-8">
+                    <h1 className="text-2xl sm:text-3xl font-bold text-red-600">🩸 Create Blood Request</h1>
+                    <p className="text-gray-500 mt-1 text-sm sm:text-base">জরুরি রক্তের প্রয়োজন? এখনই request করুন।</p>
                 </div>
 
                 <div className="card bg-base-100 shadow-sm">
-                    <div className="card-body">
+                    <div className="card-body p-4 sm:p-8">
                         <form onSubmit={handleSubmit} className="space-y-4">
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

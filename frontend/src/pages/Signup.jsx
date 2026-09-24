@@ -46,8 +46,7 @@ const Signup = () => {
         setLoading(true);
 
         try {
-            // /auth/register creates both User account AND Donor profile
-            // so the user can both donate blood AND request blood after one signup
+            // Unified register creates User account and Donor profile
             const res = await fetch(`${baseUrl}/auth/register`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -82,34 +81,34 @@ const Signup = () => {
             navigate('/login');
         } catch (error) {
             console.error('Signup error:', error);
-            toast.error('Network error! Make sure the backend is running.');
+            toast.error('Network error! Please check your internet connection and try again.');
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <div className="hero bg-base-200 min-h-screen py-10">
-            <div className="hero-content flex-col w-full">
+        <div className="hero bg-base-200 min-h-screen py-6 sm:py-10 px-3 sm:px-4">
+            <div className="hero-content flex-col w-full max-w-lg p-0">
 
-                <div className="text-center">
-                    <div className="text-5xl mb-3">🩸</div>
-                    <h1 className="text-4xl font-bold text-red-600">Create Account</h1>
-                    <p className="py-3 text-gray-600 max-w-sm">
+                <div className="text-center px-2">
+                    <div className="text-4xl sm:text-5xl mb-2 sm:mb-3">🩸</div>
+                    <h1 className="text-3xl sm:text-4xl font-bold text-red-600">Create Account</h1>
+                    <p className="py-2 text-gray-600 text-sm max-w-sm mx-auto">
                         একবার register করলেই আপনি{' '}
                         <span className="font-semibold text-red-500">রক্ত দিতে</span> এবং{' '}
                         <span className="font-semibold text-blue-500">রক্ত নিতে</span> উভয়ই পারবেন।
                     </p>
 
                     {/* Feature badges */}
-                    <div className="flex gap-3 justify-center mb-2 flex-wrap">
-                        <span className="badge badge-success">🩸 Donate Blood</span>
-                        <span className="badge badge-info">🏥 Request Blood</span>
+                    <div className="flex gap-2 sm:gap-3 justify-center mb-2 flex-wrap">
+                        <span className="badge badge-success text-xs sm:text-sm">🩸 Donate Blood</span>
+                        <span className="badge badge-info text-xs sm:text-sm">🏥 Request Blood</span>
                     </div>
                 </div>
 
-                <div className="card bg-base-100 w-full max-w-md shrink-0 shadow-2xl">
-                    <div className="card-body">
+                <div className="card bg-base-100 w-full max-w-md shrink-0 shadow-xl border border-base-200">
+                    <div className="card-body p-4 sm:p-7">
                         <fieldset className="fieldset space-y-1">
 
                             <label className="label">Full Name <span className="text-red-500">*</span></label>
