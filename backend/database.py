@@ -27,17 +27,28 @@ if not SQLALCHEMY_DATABASE_URL:
     if mysql_password:
         SQLALCHEMY_DATABASE_URL = f"mysql+pymysql://{mysql_user}:{mysql_password}@{mysql_host}:{mysql_port}/{mysql_db}"
 
+# SQLite fallback path — works on both local and Render (ephemeral but functional)
+_db_dir = os.path.dirname(os.path.abspath(__file__))
+SQLITE_FALLBACK_URL = f"sqlite:///{os.path.join(_db_dir, 'blood_donation.db')}"
+
 # Database engine initialization
 if SQLALCHEMY_DATABASE_URL.startswith("sqlite"):
     engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
 
 elif SQLALCHEMY_DATABASE_URL.startswith("postgresql"):
-    # PostgreSQL (Render cloud) - no fallback needed
-    engine = create_engine(
-        SQLALCHEMY_DATABASE_URL,
-        pool_pre_ping=True,
-        pool_recycle=300,
-    )
+    # PostgreSQL (Render cloud)
+    try:
+        engine = create_engine(
+            SQLALCHEMY_DATABASE_URL,
+            pool_pre_ping=True,
+            pool_recycle=300,
+        )
+        with engine.connect() as conn:
+            pass
+    except Exception as e:
+        print(f"PostgreSQL connection failed: {e}. Falling back to SQLite.")
+        engine = create_engine(SQLITE_FALLBACK_URL, connect_args={"check_same_thread": False})
+        SQLALCHEMY_DATABASE_URL = SQLITE_FALLBACK_URL
 
 elif SQLALCHEMY_DATABASE_URL.startswith("mysql"):
     # MySQL (local development) with fallback to SQLite if connection fails
@@ -45,15 +56,16 @@ elif SQLALCHEMY_DATABASE_URL.startswith("mysql"):
         engine = create_engine(SQLALCHEMY_DATABASE_URL, pool_pre_ping=True)
         with engine.connect() as conn:
             pass
-    except Exception:
-        # Fallback to SQLite for local dev when MySQL not available
-        SQLALCHEMY_DATABASE_URL = "sqlite:///./blood_donation.db"
-        engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
+    except Exception as e:
+        print(f"MySQL connection failed: {e}. Falling back to SQLite.")
+        engine = create_engine(SQLITE_FALLBACK_URL, connect_args={"check_same_thread": False})
+        SQLALCHEMY_DATABASE_URL = SQLITE_FALLBACK_URL
 
 else:
     # No database URL configured at all - use SQLite as last resort
-    SQLALCHEMY_DATABASE_URL = "sqlite:///./blood_donation.db"
-    engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
+    print("No DATABASE_URL configured. Using SQLite fallback.")
+    engine = create_engine(SQLITE_FALLBACK_URL, connect_args={"check_same_thread": False})
+    SQLALCHEMY_DATABASE_URL = SQLITE_FALLBACK_URL
 
 sessionLocal = sessionmaker(autoflush=False, autocommit=False, bind=engine)
 SessionLocal = sessionLocal
