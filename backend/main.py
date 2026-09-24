@@ -12,12 +12,20 @@ from fastapi.responses import JSONResponse, RedirectResponse
 from router import auth, admin, donor, requester
 from router.auth import get_current_user
 
+# Import Seed Data Function
+from demo_data import seed_demo_donors
+
 # Initialize FastAPI Application
 app = FastAPI(
     title="Blood Donation Platform API",
     description="Blood Donation Platform Backend API - Find blood donors by group and area in Dhaka city.",
     version="2.0.0",
 )
+
+# Call Seed Function on Application Startup
+@app.on_event("startup")
+def startup_event():
+    seed_demo_donors()
 
 # CORS middleware configuration
 cors_allow_all = os.getenv("CORS_ALLOW_ALL", "true").lower() in ("true", "1", "yes")
