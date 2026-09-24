@@ -9,7 +9,7 @@ from router.auth import (
     get_current_user,
     user_dependency,
     db_dependency,
-    bcrypt_context,
+    hash_password_func,
     create_access_token,
     ACCESS_TOKEN_EXPIRE_MINUTES,
 )
@@ -49,7 +49,7 @@ class BecomeDonorRequest(BaseModel):
     gender: Optional[str] = Field(default=None, description="Male, Female, Other")
     availability: Optional[bool] = Field(default=True, description="Availability toggle")
 
-# Backward compatibility alias for donor registration (hidden from Swagger; use /auth/register instead)
+# Backward compatibility alias for donor registration
 @router.post("/register", status_code=status.HTTP_201_CREATED, include_in_schema=False)
 def register_donor(donor_data: DonorRegister, db: db_dependency):
     clean_email = donor_data.email.strip().lower()
@@ -68,7 +68,7 @@ def register_donor(donor_data: DonorRegister, db: db_dependency):
         username=clean_email,
         email=clean_email,
         phone=donor_data.phone.strip(),
-        hash_password=bcrypt_context.hash(donor_data.password),
+        hash_password=hash_password_func(donor_data.password),
         role="user",
         location=donor_data.location.strip(),
         is_active=True,
@@ -163,7 +163,7 @@ def get_donor_dashboard(user: user_dependency, db: db_dependency):
         ]
     }
 
-# Create or activate donor profile for current logged-in user (hidden from Swagger; handled via PUT /me)
+# Create or activate donor profile for current logged-in user
 @router.post("/become-donor", include_in_schema=False)
 def become_or_activate_donor(user: user_dependency, db: db_dependency, donor_data: BecomeDonorRequest):
     db_user = db.query(Users).filter(Users.id == user["id"]).first()
@@ -230,7 +230,6 @@ def update_donor_profile(user: user_dependency, db: db_dependency, updates: Dono
     data = updates.model_dump(exclude_unset=True)
 
     if not donor:
-        # If user does not have a donor record yet, create one
         bg = data.get("blood_group")
         if not bg:
             raise HTTPException(status_code=400, detail="Blood group is required to activate donor profile")
