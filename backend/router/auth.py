@@ -3,12 +3,18 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from datetime import timedelta, datetime, timezone
 from typing import Annotated, Optional
+import os
+from dotenv import load_dotenv
 from database import sessionLocal
 from models import Users, Donors
 from fastapi.responses import JSONResponse
 from passlib.context import CryptContext
 from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
 from jose import jwt, JWTError
+
+# Load environment variables
+load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
+load_dotenv()
 
 router = APIRouter(prefix='/auth', tags=['auth'])
 
@@ -17,9 +23,9 @@ bcrypt_context = CryptContext(schemes=['bcrypt'], deprecated='auto')
 QAuth2_bearer = OAuth2PasswordBearer(tokenUrl='auth/login')
 OAuth2_bearer = QAuth2_bearer
 
-SECRET_KEY = '79c463b8c7296ef09bfc9e7a374f6c5609a252cb90b55f1fcb4aa73121993a6a'
-ALGORITHM = 'HS256'
-ACCESS_TOKEN_EXPIRE_MINUTES = 1440
+SECRET_KEY = os.getenv('SECRET_KEY', '79c463b8c7296ef09bfc9e7a374f6c5609a252cb90b55f1fcb4aa73121993a6a')
+ALGORITHM = os.getenv('ALGORITHM', 'HS256')
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv('ACCESS_TOKEN_EXPIRE_MINUTES', '1440'))
 
 # Pydantic schema for unified registration (acts as both donor and requester)
 class CreateUserRequest(BaseModel):
