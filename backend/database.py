@@ -10,14 +10,24 @@ load_dotenv(os.path.join(os.path.dirname(__file__), '.env'))
 load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
 load_dotenv()
 
-# Render sets DATABASE_URL in environment; for local dev set it in .env file
-# Production PostgreSQL fallback (Render blood-donation-db)
-_RENDER_PG_URL = 'postgresql://blood_donation_db_9zit_user:1DFwJQZME1PmzZqHRbzk8r1SzSdLZ62u@dpg-daps1gu7bikc738k1ieg-a.singapore-postgres.render.com/blood_donation_db_9zit'
-SQLALCHEMY_DATABASE_URL = os.getenv('DATABASE_URL', _RENDER_PG_URL).strip()
+# Production PostgreSQL URL (Render blood-donation-db - External/Full URL)
+_RENDER_PG_EXTERNAL = 'postgresql://blood_donation_db_9zit_user:1DFwJQZME1PmzZqHRbzk8r1SzSdLZ62u@dpg-daps1gu7bikc738k1ieg-a.singapore-postgres.render.com/blood_donation_db_9zit'
+
+# Get DATABASE_URL; if it's Render internal short URL (no .render.com), replace with full external URL
+_raw_db_url = os.getenv('DATABASE_URL', '').strip()
+_is_local = any(x in _raw_db_url for x in ['localhost', '127.0.0.1', 'sqlite'])
+_is_full_pg = '.render.com' in _raw_db_url or _is_local
+
+if _is_full_pg:
+    SQLALCHEMY_DATABASE_URL = _raw_db_url
+else:
+    # No URL, or short internal URL without .render.com suffix → use External URL
+    SQLALCHEMY_DATABASE_URL = _RENDER_PG_EXTERNAL
 
 # Render provides URLs starting with 'postgres://', SQLAlchemy needs 'postgresql://'
 if SQLALCHEMY_DATABASE_URL.startswith("postgres://"):
     SQLALCHEMY_DATABASE_URL = SQLALCHEMY_DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
 
 # If DATABASE_URL not set, try building from individual MySQL env variables
 if not SQLALCHEMY_DATABASE_URL:
