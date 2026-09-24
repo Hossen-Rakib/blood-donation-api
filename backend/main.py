@@ -12,8 +12,13 @@ from fastapi.responses import JSONResponse, RedirectResponse
 from router import auth, admin, donor, requester
 from router.auth import get_current_user
 
+# Import Password Hashing Context
+from passlib.context import CryptContext
+
 # Import Seed Data Function
 from demo_data import seed_demo_donors
+
+bcrypt_context = CryptContext(schemes=['bcrypt'], deprecated='auto')
 
 # Initialize FastAPI Application
 app = FastAPI(
@@ -22,10 +27,47 @@ app = FastAPI(
     version="2.0.0",
 )
 
-# Call Seed Function on Application Startup
+# Call Seed Function & Auto Reset Admin on Application Startup
 @app.on_event("startup")
 def startup_event():
+    # 1. Seed demo donors
     seed_demo_donors()
+    
+    # 2. Ensure Admin user exists and has password 'admin123' on Live DB
+    db = sessionLocal()
+    try:
+        ADMIN_EMAIL = "admin@bloodbridge.com"
+        ADMIN_USERNAME = "admin"
+        ADMIN_PASSWORD = "admin123"
+
+        existing = db.query(Users).filter(
+            (Users.email == ADMIN_EMAIL) | (Users.username == ADMIN_USERNAME)
+        ).first()
+
+        if existing:
+            existing.role = 'admin'
+            existing.hash_password = bcrypt_context.hash(ADMIN_PASSWORD)
+            db.commit()
+            print(f"[OK] Admin '{existing.username}' updated with password '{ADMIN_PASSWORD}' on startup.")
+        else:
+            admin = Users(
+                name="Admin",
+                email=ADMIN_EMAIL,
+                username=ADMIN_USERNAME,
+                phone="01700000000",
+                hash_password=bcrypt_context.hash(ADMIN_PASSWORD),
+                role='admin',
+                location='Dhaka',
+                is_active=True,
+            )
+            db.add(admin)
+            db.commit()
+            print("[OK] New Admin created on startup.")
+    except Exception as e:
+        db.rollback()
+        print(f"[ERROR Startup Admin]: {e}")
+    finally:
+        db.close()
 
 # CORS middleware configuration
 cors_allow_all = os.getenv("CORS_ALLOW_ALL", "true").lower() in ("true", "1", "yes")
