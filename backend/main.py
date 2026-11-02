@@ -1,8 +1,16 @@
+import sys
+import os
+
+# Ensure the backend directory is in sys.path so that
+# bare imports like 'import models' work from any working directory
+_backend_dir = os.path.dirname(os.path.abspath(__file__))
+if _backend_dir not in sys.path:
+    sys.path.insert(0, _backend_dir)
+
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
-import os
 import bcrypt
 
 import models
