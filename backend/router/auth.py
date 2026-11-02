@@ -4,10 +4,11 @@ from sqlalchemy.orm import Session
 from datetime import timedelta, datetime, timezone
 from typing import Annotated, Optional
 import os
+import secrets
 import bcrypt
 from dotenv import load_dotenv
 from database import sessionLocal
-from models import Users, Donors
+from models import Users, Donors, PasswordResetToken
 from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
 from jose import jwt, JWTError
@@ -60,9 +61,132 @@ class CreateUserRequest(BaseModel):
 
 UserRegister = CreateUserRequest
 
+class ForgotPasswordRequest(BaseModel):
+    email: str = Field(..., description="Registered email address")
+
+class VerifyResetTokenRequest(BaseModel):
+    token: str = Field(..., description="Reset token received from forgot-password")
+
 class ResetPasswordRequest(BaseModel):
-    email: str
-    new_password: str
+    token: str  = Field(..., description="Reset token received from forgot-password")
+    new_password: str = Field(..., min_length=4, description="New password (min 4 characters)")
+
+# ──────────────────────────────────────────────
+# STEP 1 ─ Request a password reset token
+# ──────────────────────────────────────────────
+@router.post('/forgot-password', tags=['auth'])
+def forgot_password(db: db_dependency, payload: ForgotPasswordRequest):
+    """
+    Send a password-reset token for the given email.
+    The token is valid for 15 minutes and can only be used once.
+    """
+    clean_email = payload.email.strip().lower()
+    user = db.query(Users).filter(Users.email.ilike(clean_email)).first()
+
+    # Always return success to avoid leaking whether an email is registered
+    if not user:
+        return JSONResponse(
+            status_code=200,
+            content={
+                'message': 'If this email is registered, a reset token has been sent.',
+                'token': None
+            }
+        )
+
+    # Invalidate any previously unused tokens for this user
+    db.query(PasswordResetToken).filter(
+        PasswordResetToken.user_id == user.id,
+        PasswordResetToken.is_used == False
+    ).delete()
+    db.flush()
+
+    # Create a new secure token (expires in 15 minutes)
+    raw_token = secrets.token_urlsafe(48)
+    expires_at = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(minutes=15)
+
+    reset_entry = PasswordResetToken(
+        user_id=user.id,
+        token=raw_token,
+        expires_at=expires_at,
+        is_used=False,
+    )
+    db.add(reset_entry)
+    db.commit()
+
+    return JSONResponse(
+        status_code=200,
+        content={
+            'message': 'Password reset token generated successfully. Token is valid for 15 minutes.',
+            'token': raw_token,
+            'expires_in_minutes': 15,
+            'email': clean_email,
+        }
+    )
+
+# ──────────────────────────────────────────────
+# STEP 2 ─ Verify that a token is still valid
+# ──────────────────────────────────────────────
+@router.post('/verify-reset-token', tags=['auth'])
+def verify_reset_token(db: db_dependency, payload: VerifyResetTokenRequest):
+    """
+    Verify a password-reset token without consuming it.
+    Useful for the frontend to validate the token before showing the new-password form.
+    """
+    entry = db.query(PasswordResetToken).filter(
+        PasswordResetToken.token == payload.token,
+        PasswordResetToken.is_used == False
+    ).first()
+
+    if not entry:
+        raise HTTPException(status_code=400, detail='Invalid or already used reset token.')
+
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    if entry.expires_at < now:
+        raise HTTPException(status_code=400, detail='Reset token has expired. Please request a new one.')
+
+    return JSONResponse(
+        status_code=200,
+        content={'valid': True, 'message': 'Token is valid. You may now reset your password.'}
+    )
+
+# ──────────────────────────────────────────────
+# STEP 3 ─ Reset the password using the token
+# ──────────────────────────────────────────────
+@router.post('/reset-password', tags=['auth'])
+def reset_password(db: db_dependency, payload: ResetPasswordRequest):
+    """
+    Reset the user's password using a valid reset token.
+    The token is consumed (marked used) after a successful reset.
+    """
+    entry = db.query(PasswordResetToken).filter(
+        PasswordResetToken.token == payload.token,
+        PasswordResetToken.is_used == False
+    ).first()
+
+    if not entry:
+        raise HTTPException(status_code=400, detail='Invalid or already used reset token.')
+
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    if entry.expires_at < now:
+        raise HTTPException(status_code=400, detail='Reset token has expired. Please request a new one.')
+
+    user = db.query(Users).filter(Users.id == entry.user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail='User not found.')
+
+    # Update password
+    user.hash_password = hash_password_func(payload.new_password)
+
+    # Mark token as used
+    entry.is_used = True
+
+    db.commit()
+
+    return JSONResponse(
+        status_code=200,
+        content={'message': 'Password has been reset successfully. You can now log in with your new password.'}
+    )
+
 
 def authenticate_user(username, password, db):
     user = db.query(Users).filter(
@@ -193,16 +317,3 @@ def login_user(db: db_dependency, form_data: Annotated[OAuth2PasswordRequestForm
     user_role = getattr(user, 'role', 'user') or 'user'
     token = create_access_token(user.username, user.id, user_role, timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
     return {'access_token': token, 'token_type': 'bearer'}
-
-# Reset password
-@router.post('/reset-password')
-def reset_password(db: db_dependency, payload: ResetPasswordRequest):
-    clean_email = payload.email.strip().lower()
-    user = db.query(Users).filter(
-        (Users.email.ilike(clean_email)) | (Users.username.ilike(clean_email))
-    ).first()
-    if not user:
-        raise HTTPException(status_code=404, detail='User not found with this email')
-    user.hash_password = hash_password_func(payload.new_password)
-    db.commit()
-    return JSONResponse(status_code=200, content={'message': 'Password reset successfully'})
