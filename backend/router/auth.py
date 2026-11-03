@@ -71,6 +71,45 @@ class ResetPasswordRequest(BaseModel):
     token: str  = Field(..., description="Reset token received from forgot-password")
     new_password: str = Field(..., min_length=4, description="New password (min 4 characters)")
 
+def authenticate_user(username, password, db):
+    user = db.query(Users).filter(
+        (Users.username == username) | (Users.email == username)
+    ).first()
+    if user is None:
+        return False
+    pwd = getattr(user, 'hash_password', None) or getattr(user, 'hashed_password', None)
+    if pwd and verify_password_func(password, pwd):
+        return user
+    return False
+
+def create_access_token(username: str, user_id: int, role: str, expire_delta: timedelta):
+    encode = {'sub': username, 'id': user_id, 'role': role}
+    expires = datetime.now(timezone.utc) + expire_delta
+    encode.update({'exp': expires})
+    return jwt.encode(encode, SECRET_KEY, algorithm=ALGORITHM)
+
+def get_current_user(token: Annotated[str, Depends(QAuth2_bearer)]):
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get('sub')
+        user_id: int = payload.get('id')
+        role: str = payload.get('role', 'user')
+        if username is None or user_id is None:
+            raise HTTPException(status_code=401, detail='Could not validate user')
+        return {'username': username, 'id': user_id, 'user_id': user_id, 'role': role}
+    except JWTError:
+        raise HTTPException(status_code=401, detail='Could not validate user')
+
+def get_db():
+    db = sessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+db_dependency = Annotated[Session, Depends(get_db)]
+user_dependency = Annotated[dict, Depends(get_current_user)]
+
 # ──────────────────────────────────────────────
 # STEP 1 ─ Request a password reset token
 # ──────────────────────────────────────────────
@@ -186,46 +225,6 @@ def reset_password(db: db_dependency, payload: ResetPasswordRequest):
         status_code=200,
         content={'message': 'Password has been reset successfully. You can now log in with your new password.'}
     )
-
-
-def authenticate_user(username, password, db):
-    user = db.query(Users).filter(
-        (Users.username == username) | (Users.email == username)
-    ).first()
-    if user is None:
-        return False
-    pwd = getattr(user, 'hash_password', None) or getattr(user, 'hashed_password', None)
-    if pwd and verify_password_func(password, pwd):
-        return user
-    return False
-
-def create_access_token(username: str, user_id: int, role: str, expire_delta: timedelta):
-    encode = {'sub': username, 'id': user_id, 'role': role}
-    expires = datetime.now(timezone.utc) + expire_delta
-    encode.update({'exp': expires})
-    return jwt.encode(encode, SECRET_KEY, algorithm=ALGORITHM)
-
-def get_current_user(token: Annotated[str, Depends(QAuth2_bearer)]):
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get('sub')
-        user_id: int = payload.get('id')
-        role: str = payload.get('role', 'user')
-        if username is None or user_id is None:
-            raise HTTPException(status_code=401, detail='Could not validate user')
-        return {'username': username, 'id': user_id, 'user_id': user_id, 'role': role}
-    except JWTError:
-        raise HTTPException(status_code=401, detail='Could not validate user')
-
-def get_db():
-    db = sessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-db_dependency = Annotated[Session, Depends(get_db)]
-user_dependency = Annotated[dict, Depends(get_current_user)]
 
 # Unified single registration endpoint
 @router.post('/register', status_code=201)
