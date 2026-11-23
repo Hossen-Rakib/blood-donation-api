@@ -13,7 +13,6 @@ from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
 from jose import jwt, JWTError
 
-# Load environment variables
 load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
 load_dotenv()
 
@@ -26,9 +25,8 @@ SECRET_KEY = os.getenv('SECRET_KEY', '79c463b8c7296ef09bfc9e7a374f6c5609a252cb90
 ALGORITHM = os.getenv('ALGORITHM', 'HS256')
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv('ACCESS_TOKEN_EXPIRE_MINUTES', '1440'))
 
-# Helper functions for password hashing & verification
 def hash_password_func(password: str) -> str:
-    # Truncate password to 72 bytes safely to avoid bcrypt limit error
+
     pwd_bytes = password.encode('utf-8')[:72]
     salt = bcrypt.gensalt()
     return bcrypt.hashpw(pwd_bytes, salt).decode('utf-8')
@@ -36,17 +34,16 @@ def hash_password_func(password: str) -> str:
 def verify_password_func(plain_password: str, hashed_password: str) -> bool:
     try:
         pwd_bytes = plain_password.encode('utf-8')[:72]
-        # Ensure hashed_password is converted to bytes safely
+
         if isinstance(hashed_password, str):
             hashed_bytes = hashed_password.encode('utf-8')
         else:
             hashed_bytes = hashed_password
-            
+
         return bcrypt.checkpw(pwd_bytes, hashed_bytes)
     except Exception:
         return False
 
-# Pydantic schema for unified registration
 class CreateUserRequest(BaseModel):
     email: str = Field(..., description="Email Address (Used as login ID)")
     password: str = Field(..., min_length=4, description="Password (min 4 characters)")
@@ -110,9 +107,7 @@ def get_db():
 db_dependency = Annotated[Session, Depends(get_db)]
 user_dependency = Annotated[dict, Depends(get_current_user)]
 
- 
-#Request a password reset token
- 
+# POST /auth/forgot-password — registered email দিয়ে password reset token জেনারেট করে
 @router.post(
     '/forgot-password',
     tags=['auth'],
@@ -120,18 +115,10 @@ user_dependency = Annotated[dict, Depends(get_current_user)]
     response_description="Returns a reset token valid for 15 minutes",
 )
 def forgot_password(db: db_dependency, payload: ForgotPasswordRequest):
-    """
-    Request a **password reset token** using a registered email address.
 
-    - If the email is registered, a token is generated and returned (valid **15 minutes**).
-    - For security, always returns `200 OK` even if the email is not found.
-    - In production, this token should be sent via **email**; here it is returned directly in the response.
-    """
- 
     clean_email = payload.email.strip().lower()
     user = db.query(Users).filter(Users.email.ilike(clean_email)).first()
 
-    # Always return success to avoid leaking whether an email is registered
     if not user:
         return JSONResponse(
             status_code=200,
@@ -141,14 +128,12 @@ def forgot_password(db: db_dependency, payload: ForgotPasswordRequest):
             }
         )
 
-    # Invalidate any previously unused tokens for this user
     db.query(PasswordResetToken).filter(
         PasswordResetToken.user_id == user.id,
         PasswordResetToken.is_used == False
     ).delete()
     db.flush()
 
-    # Create a new secure token (expires in 15 minutes)
     raw_token = secrets.token_urlsafe(48)
     expires_at = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(minutes=15)
 
@@ -171,9 +156,7 @@ def forgot_password(db: db_dependency, payload: ForgotPasswordRequest):
         }
     )
 
- 
-# Verify that a token is still valid
- 
+# POST /auth/verify-reset-token — reset token টি valid কিনা যাচাই করে (token consume হয় না)
 @router.post(
     '/verify-reset-token',
     tags=['auth'],
@@ -181,12 +164,6 @@ def forgot_password(db: db_dependency, payload: ForgotPasswordRequest):
     response_description="Returns whether the token is valid",
 )
 def verify_reset_token(db: db_dependency, payload: VerifyResetTokenRequest):
-    """
-    **Verify** that a password reset token is still valid **without consuming it**.
-
-    Use this endpoint to validate the token before showing the new-password form to the user.
-    Returns `{ "valid": true }` if the token is valid and not expired.
-    """
     entry = db.query(PasswordResetToken).filter(
         PasswordResetToken.token == payload.token,
         PasswordResetToken.is_used == False
@@ -204,9 +181,7 @@ def verify_reset_token(db: db_dependency, payload: VerifyResetTokenRequest):
         content={'valid': True, 'message': 'Token is valid. You may now reset your password.'}
     )
 
- 
-# Reset the password using the token
- 
+# POST /auth/reset-password — valid token দিয়ে নতুন password সেট করে
 @router.post(
     '/reset-password',
     tags=['auth'],
@@ -214,14 +189,7 @@ def verify_reset_token(db: db_dependency, payload: VerifyResetTokenRequest):
     response_description="Confirmation that password was changed",
 )
 def reset_password(db: db_dependency, payload: ResetPasswordRequest):
-    """
-    **Reset the password** using a valid reset token.
 
-    - Token must be obtained from `POST /auth/forgot-password`.
-    - Token is **consumed** after use — cannot be reused.
-    - New password must be at least **4 characters**.
-    """
-    
     entry = db.query(PasswordResetToken).filter(
         PasswordResetToken.token == payload.token,
         PasswordResetToken.is_used == False
@@ -238,10 +206,8 @@ def reset_password(db: db_dependency, payload: ResetPasswordRequest):
     if not user:
         raise HTTPException(status_code=404, detail='User not found.')
 
-    # Update password
     user.hash_password = hash_password_func(payload.new_password)
 
-    # Mark token as used
     entry.is_used = True
 
     db.commit()
@@ -251,7 +217,7 @@ def reset_password(db: db_dependency, payload: ResetPasswordRequest):
         content={'message': 'Password has been reset successfully. You can now log in with your new password.'}
     )
 
-# Unified single registration endpoint
+# POST /auth/register — নতুন user রেজিস্ট্রেশন করে এবং JWT token রিটার্ন করে
 @router.post(
     '/register',
     status_code=201,
@@ -259,30 +225,19 @@ def reset_password(db: db_dependency, payload: ResetPasswordRequest):
     response_description="User created with access token",
 )
 def create_users(db: db_dependency, new_user: CreateUserRequest):
-    """
-    **Register a new user account.**
 
-    - If `blood_group` is provided, a **donor profile** is automatically created.
-    - Returns an `access_token` immediately — no separate login needed.
-    - `username` defaults to email if not provided.
-    - `location` defaults to `"Dhaka"` if not provided.
-
-    **Example blood groups:** `A+`, `A-`, `B+`, `B-`, `AB+`, `AB-`, `O+`, `O-`
-    """
     clean_email = new_user.email.strip().lower()
     clean_username = (new_user.username.strip().lower()) if new_user.username else clean_email
     display_name = (new_user.name.strip()) if new_user.name else clean_username
     phone_number = new_user.phone.strip() if new_user.phone else '01700000000'
     user_location = new_user.location.strip() if new_user.location else 'Dhaka'
 
-    # Check existing user
     existing_user = db.query(Users).filter(
         (Users.email.ilike(clean_email)) | (Users.username.ilike(clean_username))
     ).first()
     if existing_user:
         raise HTTPException(status_code=400, detail='This email or username is already registered. Please login.')
 
-    # 1. Create User account
     user_model = Users(
         name=display_name,
         email=clean_email,
@@ -296,7 +251,6 @@ def create_users(db: db_dependency, new_user: CreateUserRequest):
     db.add(user_model)
     db.flush()
 
-    # 2. Linked Donors record
     donor_id = None
     clean_bg = new_user.blood_group.strip().upper() if new_user.blood_group else None
     if clean_bg:
@@ -319,7 +273,6 @@ def create_users(db: db_dependency, new_user: CreateUserRequest):
     db.commit()
     db.refresh(user_model)
 
-    # 3. Generate token
     token = create_access_token(
         user_model.username,
         user_model.id,
@@ -347,32 +300,14 @@ def create_users(db: db_dependency, new_user: CreateUserRequest):
         }
     )
 
-# Login endpoint
+# POST /auth/login — username/email ও password দিয়ে login করে Bearer token পায়
 @router.post(
     '/login',
     summary="Login (Get Bearer Token)",
     response_description="JWT access token",
 )
 def login_user(db: db_dependency, form_data: Annotated[OAuth2PasswordRequestForm, Depends()]):
-    """
-    **Login and receive a JWT Bearer Token.**
 
-    > ⚠️ This endpoint uses **form-data** (`application/x-www-form-urlencoded`), not JSON.
-
-    **Fields:**
-    - `username` — your email address or username
-    - `password` — your password
-
-    **JavaScript Example:**
-    ```js
-    const form = new FormData();
-    form.append("username", "rakib@example.com");
-    form.append("password", "pass1234");
-    fetch("/auth/login", { method: "POST", body: form });
-    ```
-
-    Use the returned `access_token` as: `Authorization: Bearer <token>`
-    """
     user = authenticate_user(form_data.username, form_data.password, db)
     if not user:
         raise HTTPException(status_code=401, detail='Failed Authentication')
