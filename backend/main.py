@@ -98,7 +98,7 @@ app = FastAPI(
         },
     ],
     swagger_ui_parameters={
-        "docExpansion": "none",
+        "docExpansion": "list",
         "defaultModelsExpandDepth": -1,
         "displayRequestDuration": True,
         "filter": True,
