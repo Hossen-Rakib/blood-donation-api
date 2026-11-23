@@ -106,15 +106,6 @@ app = FastAPI(
     title="🩸 Blood Donation Platform API",
     description=API_DESCRIPTION,
     version="2.0.0",
-    contact={
-        "name": "Blood Donation Platform — Dev Team",
-        "url": "https://github.com/Hossen-Rakib/blood-donation-api",
-        "email": "admin@bloodbridge.com",
-    },
-    license_info={
-        "name": "MIT License",
-        "url": "https://opensource.org/licenses/MIT",
-    },
     openapi_tags=[
         {
             "name": "auth",
