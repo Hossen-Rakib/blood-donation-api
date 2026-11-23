@@ -119,8 +119,20 @@ def register_donor(donor_data: DonorRegister, db: db_dependency):
     }
 
 # Get current logged-in donor profile and summary stats
-@router.get("/me")
+@router.get(
+    "/me",
+    summary="Get My Donor Dashboard",
+    response_description="Donor profile with donation history and statistics",
+)
 def get_donor_dashboard(user: user_dependency, db: db_dependency):
+    """
+    Get the **logged-in user's donor profile** including:
+    - Profile info (blood group, location, availability)
+    - Total donation count and bags donated
+    - Full donation history (most recent first)
+
+    Returns `404` if the user has not registered as a donor yet.
+    """
     donor = db.query(Donors).filter(Donors.user_id == user["id"]).first()
     if not donor:
         raise HTTPException(
@@ -220,8 +232,24 @@ def become_or_activate_donor(user: user_dependency, db: db_dependency, donor_dat
     }
 
 # Update donor profile details
-@router.put("/me")
+@router.put(
+    "/me",
+    summary="Update My Donor Profile",
+    response_description="Confirmation of profile update",
+)
 def update_donor_profile(user: user_dependency, db: db_dependency, updates: DonorProfileUpdate):
+    """
+    **Partially update** the logged-in user's donor profile.
+
+    - Only provided fields are updated (**partial update** supported).
+    - If the user doesn't have a donor profile yet, providing `blood_group` will **create** one automatically.
+    - `name`, `phone`, and `location` changes are also synced to the user account.
+
+    **Toggle availability:**
+    ```json
+    { "availability": false }
+    ```
+    """
     donor = db.query(Donors).filter(Donors.user_id == user["id"]).first()
     db_user = db.query(Users).filter(Users.id == user["id"]).first()
     if not db_user:
@@ -268,8 +296,19 @@ def update_donor_profile(user: user_dependency, db: db_dependency, updates: Dono
     return JSONResponse(status_code=200, content={"message": "Donor profile updated successfully"})
 
 # Delete donor profile for current logged in user
-@router.delete("/delete-profile")
+@router.delete(
+    "/delete-profile",
+    summary="Delete My Donor Profile",
+    response_description="Confirmation of deletion",
+)
 def delete_donor_profile(user: user_dependency, db: db_dependency):
+    """
+    **Permanently delete** the logged-in user's donor profile.
+
+    - The user account is **not** deleted — only the donor profile.
+    - Donation history linked to this donor will also be removed (cascade delete).
+    - The user can re-register as a donor later via `PUT /donor/me`.
+    """
     donor = db.query(Donors).filter(Donors.user_id == user["id"]).first()
     if not donor:
         raise HTTPException(status_code=404, detail="Donor profile not found")
@@ -279,12 +318,24 @@ def delete_donor_profile(user: user_dependency, db: db_dependency):
     return JSONResponse(status_code=200, content={"message": "Donor profile deleted successfully"})
 
 # View open blood requests matching the logged-in donor blood group
-@router.get("/matching-requests")
+@router.get(
+    "/matching-requests",
+    summary="Get Matching Blood Requests (For Donor)",
+    response_description="List of open blood requests matching donor's blood group",
+)
 def get_matching_blood_requests(
     user: user_dependency,
     db: db_dependency,
     filter_by_location: bool = Query(default=False, description="Filter matching requests only in donor area")
 ):
+    """
+    Get **open blood requests** that match the logged-in donor's blood group.
+
+    - Only returns `pending` or `donor_found` status requests.
+    - Excludes the donor's own requests.
+    - Set `filter_by_location=true` to only show requests from the donor's area.
+    - Results are sorted by urgency (emergency first) then newest.
+    """
     donor = db.query(Donors).filter(Donors.user_id == user["id"]).first()
     if not donor:
         raise HTTPException(status_code=404, detail="Donor profile not found")
@@ -322,8 +373,20 @@ def get_matching_blood_requests(
     ]
 
 # Donor accepts a blood request and notifies the requester
-@router.put("/requests/{request_id}/accept")
+@router.put(
+    "/requests/{request_id}/accept",
+    summary="Accept a Blood Request",
+    response_description="Acceptance confirmation with donor info",
+)
 def accept_blood_request(user: user_dependency, db: db_dependency, request_id: int):
+    """
+    **Accept** an open blood request as a donor.
+
+    - Request status changes to `donor_accepted`.
+    - The **requester gets a notification** with donor name, phone, blood group, and location.
+    - Cannot accept your own request.
+    - Cannot accept a request already in `donor_accepted`, `donation_completed`, or `request_closed` state.
+    """
     donor = db.query(Donors).filter(Donors.user_id == user["id"]).first()
     if not donor:
         raise HTTPException(status_code=404, detail="Donor profile not found")
@@ -368,8 +431,19 @@ def accept_blood_request(user: user_dependency, db: db_dependency, request_id: i
     }
 
 # Donor declines a blood request and reopens it
-@router.put("/requests/{request_id}/reject")
+@router.put(
+    "/requests/{request_id}/reject",
+    summary="Reject / Decline a Blood Request",
+    response_description="Confirmation that request is back to pending",
+)
 def reject_blood_request(user: user_dependency, db: db_dependency, request_id: int):
+    """
+    **Decline** a previously accepted blood request.
+
+    - Only the donor who accepted the request can decline it.
+    - Request status reverts to `pending` — it becomes open for other donors again.
+    - The `accepted_donor_id` is cleared.
+    """
     donor = db.query(Donors).filter(Donors.user_id == user["id"]).first()
     if not donor:
         raise HTTPException(status_code=404, detail="Donor profile not found")

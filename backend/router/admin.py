@@ -25,8 +25,19 @@ def require_admin(user: dict):
         )
 
 # Admin dashboard statistics and metrics
-@router.get("/dashboard")
+@router.get(
+    "/dashboard",
+    summary="Admin Dashboard Statistics",
+    response_description="Platform overview stats and chart data",
+)
 def get_admin_dashboard_stats(user: user_dependency, db: db_dependency):
+    """
+    **Admin only** — Get platform-wide statistics for the dashboard.
+
+    Returns:
+    - **Overview:** total users, donors, active donors, requests, emergency counts
+    - **Charts:** blood group distribution (donors vs requests), emergency vs normal, top locations
+    """
     require_admin(user)
 
     total_users = db.query(Users).count()
@@ -89,7 +100,11 @@ def get_admin_dashboard_stats(user: user_dependency, db: db_dependency):
     }
 
 # List all users with role filter, name search, and pagination
-@router.get("/users")
+@router.get(
+    "/users",
+    summary="List All Users (Admin)",
+    response_description="Paginated list of all users",
+)
 def get_all_users(
     user: user_dependency,
     db: db_dependency,
@@ -143,8 +158,19 @@ def get_all_users(
     }
 
 # Deactivate or reactivate user account
-@router.put("/users/{user_id}/toggle-active")
+@router.put(
+    "/users/{user_id}/toggle-active",
+    summary="Toggle User Active Status (Admin)",
+    response_description="Confirmation with new status",
+)
 def toggle_user_active(user_id: int, user: user_dependency, db: db_dependency):
+    """
+    **Admin only** — Activate or deactivate a user account.
+
+    - Toggles `is_active` between `true` and `false`.
+    - Admin accounts cannot be deactivated.
+    - Deactivated users cannot log in.
+    """
     require_admin(user)
     target = db.query(Users).filter(Users.id == user_id).first()
     if not target:
@@ -159,8 +185,19 @@ def toggle_user_active(user_id: int, user: user_dependency, db: db_dependency):
     return JSONResponse(status_code=200, content={"message": f"User '{target.username}' {action}."})
 
 # Permanently delete user account
-@router.delete("/users/{user_id}")
+@router.delete(
+    "/users/{user_id}",
+    summary="Delete User (Admin)",
+    response_description="Confirmation of deletion",
+)
 def delete_user(user_id: int, user: user_dependency, db: db_dependency):
+    """
+    **Admin only** — Permanently delete a user account.
+
+    - Admin accounts cannot be deleted.
+    - All associated donor profiles, blood requests, and notifications are cascade-deleted.
+    - ⚠️ This action is **irreversible**.
+    """
     require_admin(user)
     target = db.query(Users).filter(Users.id == user_id).first()
     if not target:
@@ -173,8 +210,18 @@ def delete_user(user_id: int, user: user_dependency, db: db_dependency):
     return JSONResponse(status_code=200, content={"message": "User deleted successfully"})
 
 # Toggle donor verified badge
-@router.put("/donors/{donor_id}/verify")
+@router.put(
+    "/donors/{donor_id}/verify",
+    summary="Toggle Donor Verification Badge (Admin)",
+    response_description="New verification status",
+)
 def toggle_donor_verification(donor_id: int, user: user_dependency, db: db_dependency):
+    """
+    **Admin only** — Toggle the **verified** badge on a donor profile.
+
+    - `verified: true` → shows a verified badge on the donor's public profile.
+    - Toggles between verified and unverified on each call.
+    """
     require_admin(user)
     donor = db.query(Donors).filter(Donors.id == donor_id).first()
     if not donor:
@@ -187,13 +234,24 @@ def toggle_donor_verification(donor_id: int, user: user_dependency, db: db_depen
     return JSONResponse(status_code=200, content={"message": f"Donor status updated to {status_str}", "verified": donor.verified})
 
 # Monitor all blood requests across platform
-@router.get("/requests/all")
+@router.get(
+    "/requests/all",
+    summary="Get All Blood Requests (Admin)",
+    response_description="All blood requests filtered by status/urgency",
+)
 def get_all_requests_admin(
     user: user_dependency,
     db: db_dependency,
     status: Optional[str] = Query(default=None),
     urgency: Optional[str] = Query(default=None),
 ):
+    """
+    **Admin only** — View all blood requests on the platform.
+
+    - Filter by `status`: `pending`, `donor_found`, `donor_accepted`, `donation_completed`, `request_closed`, `cancelled`
+    - Filter by `urgency`: `normal` or `emergency`
+    - Results sorted by newest first.
+    """
     require_admin(user)
     query = db.query(BloodRequests)
     if status:
@@ -204,13 +262,23 @@ def get_all_requests_admin(
     return query.order_by(BloodRequests.id.desc()).all()
 
 # Manually update status of any blood request
-@router.put("/requests/{request_id}/status")
+@router.put(
+    "/requests/{request_id}/status",
+    summary="Update Blood Request Status (Admin)",
+    response_description="Confirmation with new status",
+)
 def update_request_status_admin(
     request_id: int,
     payload: StatusUpdate,
     user: user_dependency,
     db: db_dependency,
 ):
+    """
+    **Admin only** — Manually update the status of any blood request.
+
+    **Valid status values:**
+    `pending` · `donor_found` · `donor_accepted` · `donation_completed` · `request_closed` · `cancelled`
+    """
     require_admin(user)
     req = db.query(BloodRequests).filter(BloodRequests.id == request_id).first()
     if not req:
@@ -225,8 +293,19 @@ def update_request_status_admin(
     return JSONResponse(status_code=200, content={"message": f"Request status updated to '{payload.status}'"})
 
 # Delete fake or spam blood request
-@router.delete("/requests/{request_id}")
+@router.delete(
+    "/requests/{request_id}",
+    summary="Delete Blood Request (Admin)",
+    response_description="Confirmation of deletion",
+)
 def delete_blood_request_admin(request_id: int, user: user_dependency, db: db_dependency):
+    """
+    **Admin only** — Permanently delete a fake or spam blood request.
+
+    - ⚠️ This is a **hard delete** — the record is removed from the database.
+    - Use this for clearly fraudulent or spam requests.
+    - For legitimate closed requests, prefer updating status to `"request_closed"`.
+    """
     require_admin(user)
     req = db.query(BloodRequests).filter(BloodRequests.id == request_id).first()
     if not req:
@@ -237,8 +316,18 @@ def delete_blood_request_admin(request_id: int, user: user_dependency, db: db_de
     return JSONResponse(status_code=200, content={"message": "Blood request deleted (fake/spam removed)"})
 
 # Promote an existing user to admin role (only current admin can do this)
-@router.put("/users/{user_id}/promote-admin")
+@router.put(
+    "/users/{user_id}/promote-admin",
+    summary="Promote User to Admin",
+    response_description="Confirmation of role change",
+)
 def promote_user_to_admin(user_id: int, user: user_dependency, db: db_dependency):
+    """
+    **Admin only** — Promote an existing `user` to `admin` role.
+
+    - Only a current admin can promote others.
+    - If the target user is already an admin, returns `400`.
+    """
     require_admin(user)
     target = db.query(Users).filter(Users.id == user_id).first()
     if not target:
@@ -254,8 +343,18 @@ def promote_user_to_admin(user_id: int, user: user_dependency, db: db_dependency
     )
 
 # Demote admin back to regular user
-@router.put("/users/{user_id}/demote-admin")
+@router.put(
+    "/users/{user_id}/demote-admin",
+    summary="Demote Admin to Regular User",
+    response_description="Confirmation of role change",
+)
 def demote_admin_to_user(user_id: int, user: user_dependency, db: db_dependency):
+    """
+    **Admin only** — Demote an `admin` back to a regular `user`.
+
+    - An admin **cannot demote themselves**.
+    - Target user must currently be an admin.
+    """
     require_admin(user)
     if user.get("id") == user_id:
         raise HTTPException(status_code=400, detail="You cannot demote yourself")

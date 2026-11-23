@@ -110,15 +110,24 @@ def get_db():
 db_dependency = Annotated[Session, Depends(get_db)]
 user_dependency = Annotated[dict, Depends(get_current_user)]
 
-# ──────────────────────────────────────────────
-# STEP 1 ─ Request a password reset token
-# ──────────────────────────────────────────────
-@router.post('/forgot-password', tags=['auth'])
+ 
+#Request a password reset token
+ 
+@router.post(
+    '/forgot-password',
+    tags=['auth'],
+    summary="Request Password Reset Token",
+    response_description="Returns a reset token valid for 15 minutes",
+)
 def forgot_password(db: db_dependency, payload: ForgotPasswordRequest):
     """
-    Send a password-reset token for the given email.
-    The token is valid for 15 minutes and can only be used once.
+    Request a **password reset token** using a registered email address.
+
+    - If the email is registered, a token is generated and returned (valid **15 minutes**).
+    - For security, always returns `200 OK` even if the email is not found.
+    - In production, this token should be sent via **email**; here it is returned directly in the response.
     """
+ 
     clean_email = payload.email.strip().lower()
     user = db.query(Users).filter(Users.email.ilike(clean_email)).first()
 
@@ -162,14 +171,21 @@ def forgot_password(db: db_dependency, payload: ForgotPasswordRequest):
         }
     )
 
-# ──────────────────────────────────────────────
-# STEP 2 ─ Verify that a token is still valid
-# ──────────────────────────────────────────────
-@router.post('/verify-reset-token', tags=['auth'])
+ 
+# Verify that a token is still valid
+ 
+@router.post(
+    '/verify-reset-token',
+    tags=['auth'],
+    summary="Verify Password Reset Token",
+    response_description="Returns whether the token is valid",
+)
 def verify_reset_token(db: db_dependency, payload: VerifyResetTokenRequest):
     """
-    Verify a password-reset token without consuming it.
-    Useful for the frontend to validate the token before showing the new-password form.
+    **Verify** that a password reset token is still valid **without consuming it**.
+
+    Use this endpoint to validate the token before showing the new-password form to the user.
+    Returns `{ "valid": true }` if the token is valid and not expired.
     """
     entry = db.query(PasswordResetToken).filter(
         PasswordResetToken.token == payload.token,
@@ -188,15 +204,24 @@ def verify_reset_token(db: db_dependency, payload: VerifyResetTokenRequest):
         content={'valid': True, 'message': 'Token is valid. You may now reset your password.'}
     )
 
-# ──────────────────────────────────────────────
-# STEP 3 ─ Reset the password using the token
-# ──────────────────────────────────────────────
-@router.post('/reset-password', tags=['auth'])
+ 
+# Reset the password using the token
+ 
+@router.post(
+    '/reset-password',
+    tags=['auth'],
+    summary="Reset Password with Token",
+    response_description="Confirmation that password was changed",
+)
 def reset_password(db: db_dependency, payload: ResetPasswordRequest):
     """
-    Reset the user's password using a valid reset token.
-    The token is consumed (marked used) after a successful reset.
+    **Reset the password** using a valid reset token.
+
+    - Token must be obtained from `POST /auth/forgot-password`.
+    - Token is **consumed** after use — cannot be reused.
+    - New password must be at least **4 characters**.
     """
+    
     entry = db.query(PasswordResetToken).filter(
         PasswordResetToken.token == payload.token,
         PasswordResetToken.is_used == False
@@ -227,8 +252,23 @@ def reset_password(db: db_dependency, payload: ResetPasswordRequest):
     )
 
 # Unified single registration endpoint
-@router.post('/register', status_code=201)
+@router.post(
+    '/register',
+    status_code=201,
+    summary="Register New User",
+    response_description="User created with access token",
+)
 def create_users(db: db_dependency, new_user: CreateUserRequest):
+    """
+    **Register a new user account.**
+
+    - If `blood_group` is provided, a **donor profile** is automatically created.
+    - Returns an `access_token` immediately — no separate login needed.
+    - `username` defaults to email if not provided.
+    - `location` defaults to `"Dhaka"` if not provided.
+
+    **Example blood groups:** `A+`, `A-`, `B+`, `B-`, `AB+`, `AB-`, `O+`, `O-`
+    """
     clean_email = new_user.email.strip().lower()
     clean_username = (new_user.username.strip().lower()) if new_user.username else clean_email
     display_name = (new_user.name.strip()) if new_user.name else clean_username
@@ -308,8 +348,31 @@ def create_users(db: db_dependency, new_user: CreateUserRequest):
     )
 
 # Login endpoint
-@router.post('/login')
+@router.post(
+    '/login',
+    summary="Login (Get Bearer Token)",
+    response_description="JWT access token",
+)
 def login_user(db: db_dependency, form_data: Annotated[OAuth2PasswordRequestForm, Depends()]):
+    """
+    **Login and receive a JWT Bearer Token.**
+
+    > ⚠️ This endpoint uses **form-data** (`application/x-www-form-urlencoded`), not JSON.
+
+    **Fields:**
+    - `username` — your email address or username
+    - `password` — your password
+
+    **JavaScript Example:**
+    ```js
+    const form = new FormData();
+    form.append("username", "rakib@example.com");
+    form.append("password", "pass1234");
+    fetch("/auth/login", { method: "POST", body: form });
+    ```
+
+    Use the returned `access_token` as: `Authorization: Bearer <token>`
+    """
     user = authenticate_user(form_data.username, form_data.password, db)
     if not user:
         raise HTTPException(status_code=401, detail='Failed Authentication')

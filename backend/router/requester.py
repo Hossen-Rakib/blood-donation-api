@@ -38,7 +38,11 @@ class BloodRequestUpdate(BaseModel):
     additional_info: Optional[str] = None
 
 # Public blood donor search with filtering, sorting, date range, and pagination
-@router.get("/donors/search")
+@router.get(
+    "/donors/search",
+    summary="Search Blood Donors (Public)",
+    response_description="Paginated list of donors with stats",
+)
 def search_blood_donors(
     db: db_dependency,
     blood_group: Optional[str] = Query(default=None, description="Blood Group e.g. A+, B+, O+, AB-"),
@@ -54,6 +58,17 @@ def search_blood_donors(
     page: int = Query(default=1, ge=1, description="Page number"),
     page_size: int = Query(default=10, ge=1, le=100, description="Results per page"),
 ):
+    """
+    **Public endpoint** — Search donors by blood group, location, name, etc.
+
+    - No authentication required.
+    - `available_only=true` (default) shows only donors who are currently available.
+    - Supports **full-text search** by name and location.
+    - Results include each donor's total donation count and bags donated.
+    - Paginated — use `page` and `page_size` to navigate results.
+
+    **Sort options:** `availability` · `name` · `location` · `blood_group` · `recent_donation` · `newest` · `id`
+    """
     query = db.query(Donors)
 
     if donor_id:
@@ -155,8 +170,19 @@ def search_blood_donors(
     }
 
 # Public donor full profile with complete donation history
-@router.get("/donors/{donor_id}")
+@router.get(
+    "/donors/{donor_id}",
+    summary="Get Donor Full Profile (Public)",
+    response_description="Complete donor profile with donation history",
+)
 def get_donor_full_profile(donor_id: int, db: db_dependency):
+    """
+    **Public endpoint** — Get the full profile of a specific donor including complete donation history.
+
+    - No authentication required.
+    - Returns all donations sorted by date (newest first).
+    - Useful for displaying a donor's public profile page.
+    """
     donor = db.query(Donors).filter(Donors.id == donor_id).first()
     if not donor:
         raise HTTPException(status_code=404, detail="Donor not found")
@@ -199,12 +225,27 @@ def get_donor_full_profile(donor_id: int, db: db_dependency):
     }
 
 # Create a blood request and notify matching donors
-@router.post("/blood-request", status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/blood-request",
+    status_code=status.HTTP_201_CREATED,
+    summary="Create Blood Request",
+    response_description="Created request ID and notification count",
+)
 def create_blood_request(
     user: user_dependency,
     db: db_dependency,
     request: BloodRequestCreate,
 ):
+    """
+    **Create a new blood request.**
+
+    - Automatically notifies all **matching available donors** via in-app notification.
+    - If `urgency` is `"emergency"`, **admin accounts** are also alerted.
+    - `status` starts as `"pending"` automatically.
+    - `notified_donors_count` in the response shows how many donors were pinged.
+
+    **Urgency values:** `"normal"` (default) · `"emergency"`
+    """
     req = BloodRequests(
         requester_id=user["id"],
         title=request.title or f"{request.blood_group} Blood Needed",
@@ -273,7 +314,11 @@ def create_blood_request(
     }
 
 # Get blood requests created by logged in user with search, status, date range, and pagination
-@router.get("/blood-request/my")
+@router.get(
+    "/blood-request/my",
+    summary="Get My Blood Requests",
+    response_description="Paginated list of the current user's blood requests",
+)
 def get_my_blood_requests(
     user: user_dependency,
     db: db_dependency,
@@ -374,7 +419,11 @@ def get_my_blood_requests(
     }
 
 # Public feed of open blood requests with search, filter, date range, sorting, pagination (Defined before {request_id})
-@router.get("/blood-request/open")
+@router.get(
+    "/blood-request/open",
+    summary="Get All Open Blood Requests (Public Feed)",
+    response_description="Paginated list of active blood requests",
+)
 def get_all_open_requests(
     db: db_dependency,
     search: Optional[str] = Query(default=None, description="Search by title, patient name, hospital, ID"),
@@ -447,8 +496,18 @@ def get_all_open_requests(
     }
 
 # Get a single blood request by ID
-@router.get("/blood-request/{request_id}")
+@router.get(
+    "/blood-request/{request_id}",
+    summary="Get Blood Request by ID",
+    response_description="Single blood request with accepted donor info",
+)
 def get_blood_request_by_id(request_id: int, db: db_dependency):
+    """
+    **Public endpoint** — Get a single blood request by its ID.
+
+    - No authentication required.
+    - If a donor has accepted the request, their info is included in `accepted_donor`.
+    """
     req = db.query(BloodRequests).filter(BloodRequests.id == request_id).first()
     if not req:
         raise HTTPException(status_code=404, detail="Blood request not found")
@@ -477,13 +536,24 @@ def get_blood_request_by_id(request_id: int, db: db_dependency):
     }
 
 # Update a blood request by its creator or admin
-@router.put("/blood-request/{request_id}")
+@router.put(
+    "/blood-request/{request_id}",
+    summary="Update Blood Request",
+    response_description="Confirmation of update",
+)
 def update_blood_request(
     request_id: int,
     updates: BloodRequestUpdate,
     user: user_dependency,
     db: db_dependency,
 ):
+    """
+    **Update** a blood request. Only the **request creator** or an **admin** can update it.
+
+    - Only requests in `"pending"` state can be edited.
+    - All fields are optional — only provided fields are updated.
+    - Blood group cannot be changed after creation.
+    """
     req = db.query(BloodRequests).filter(BloodRequests.id == request_id).first()
     if not req:
         raise HTTPException(status_code=404, detail="Blood request not found")
@@ -549,8 +619,18 @@ def mark_blood_request_completed(request_id: int, user: user_dependency, db: db_
     return JSONResponse(status_code=200, content={"message": "Blood request marked as donation completed"})
 
 # Cancel a blood request
-@router.delete("/blood-request/{request_id}")
+@router.delete(
+    "/blood-request/{request_id}",
+    summary="Cancel Blood Request",
+    response_description="Confirmation of cancellation",
+)
 def cancel_blood_request(request_id: int, user: user_dependency, db: db_dependency):
+    """
+    **Cancel** a blood request (status set to `"cancelled"` — not permanently deleted).
+
+    - Only the **request creator** or **admin** can cancel.
+    - Request is not deleted from the database; it remains with `cancelled` status.
+    """
     req = db.query(BloodRequests).filter(BloodRequests.id == request_id).first()
     if not req:
         raise HTTPException(status_code=404, detail="Blood request not found")
@@ -563,8 +643,23 @@ def cancel_blood_request(request_id: int, user: user_dependency, db: db_dependen
     return JSONResponse(status_code=200, content={"message": "Blood request cancelled successfully"})
 
 # Get in-app notifications for logged-in user
-@router.get("/notifications")
+@router.get(
+    "/notifications",
+    summary="Get My Notifications",
+    response_description="List of notifications with unread count",
+)
 def get_user_notifications(user: user_dependency, db: db_dependency):
+    """
+    Get the latest **50 in-app notifications** for the logged-in user.
+
+    Returns `unread_count` and a list of notifications sorted newest first.
+
+    **Notification types:**
+    - `new_request` — A new blood request matches the donor's blood group
+    - `request_accepted` — A donor accepted the requester's blood request
+    - `request_completed` — Donation has been completed
+    - `admin_alert` — Emergency blood request alert (admin only)
+    """
     notifs = (
         db.query(Notifications)
         .filter(Notifications.user_id == user["id"])
@@ -589,8 +684,13 @@ def get_user_notifications(user: user_dependency, db: db_dependency):
     }
 
 # Mark single notification as read
-@router.put("/notifications/{notif_id}/read")
+@router.put(
+    "/notifications/{notif_id}/read",
+    summary="Mark Notification as Read",
+    response_description="Confirmation",
+)
 def mark_notification_read(notif_id: int, user: user_dependency, db: db_dependency):
+    """Mark a **single notification** as read by its ID."""
     n = db.query(Notifications).filter(Notifications.id == notif_id, Notifications.user_id == user["id"]).first()
     if not n:
         raise HTTPException(status_code=404, detail="Notification not found")
@@ -599,8 +699,13 @@ def mark_notification_read(notif_id: int, user: user_dependency, db: db_dependen
     return JSONResponse(status_code=200, content={"message": "Marked as read"})
 
 # Mark all user notifications as read
-@router.put("/notifications/read-all")
+@router.put(
+    "/notifications/read-all",
+    summary="Mark All Notifications as Read",
+    response_description="Confirmation",
+)
 def mark_all_notifications_read(user: user_dependency, db: db_dependency):
+    """Mark **all notifications** for the logged-in user as read in a single call."""
     db.query(Notifications).filter(Notifications.user_id == user["id"]).update({"is_read": True})
     db.commit()
     return JSONResponse(status_code=200, content={"message": "All notifications marked as read"})

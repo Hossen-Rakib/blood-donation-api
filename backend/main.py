@@ -1,14 +1,13 @@
 import sys
 import os
 
-# Ensure the backend directory is in sys.path so that
-# bare imports like 'import models' work from any working directory
 _backend_dir = os.path.dirname(os.path.abspath(__file__))
 if _backend_dir not in sys.path:
     sys.path.insert(0, _backend_dir)
 
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.openapi.utils import get_openapi
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
 import bcrypt
@@ -24,11 +23,135 @@ from router.auth import get_current_user
 # Import Seed Data Function
 from demo_data import seed_demo_donors
 
+# ─────────────────────────────────────────────
+# Swagger / OpenAPI Metadata
+# ─────────────────────────────────────────────
+API_DESCRIPTION = """
+## 🩸 Blood Donation Platform — REST API
+
+> **Base URL (Local):** `http://localhost:8000`
+> **Live URL:** See deployment docs
+
+---
+
+### 🔐 Authentication
+All **protected** endpoints require a **Bearer Token** in the `Authorization` header:
+```
+Authorization: Bearer <access_token>
+```
+Obtain a token via **POST `/auth/register`** or **POST `/auth/login`**.
+Token is valid for **24 hours (1440 minutes)**.
+
+---
+
+### 👥 User Roles
+
+| Role | Description |
+|------|-------------|
+| `user` | Default role — can donate blood AND request blood |
+| `admin` | Full platform access — manage users, requests, stats |
+
+---
+
+### 📦 Module Overview
+
+| Module | Prefix | Description |
+|--------|--------|-------------|
+| **Auth** | `/auth` | Register, Login, Forgot/Reset Password |
+| **User** | `/user` | Current user profile |
+| **Donor** | `/donor` | Donor dashboard, accept/reject requests |
+| **Public** | `/donors`, `/blood-request` | Search donors, manage blood requests |
+| **Admin** | `/admin` | Platform management (admin only) |
+
+---
+
+### 🩸 Blood Groups
+`A+` `A-` `B+` `B-` `AB+` `AB-` `O+` `O-`
+
+### 📍 Supported Locations (Dhaka)
+Mirpur, Dhanmondi, Gulshan, Uttara, Mohammadpur, Motijheel,
+Banani, Farmgate, Rampura, Bashundhara, Tejgaon, Wari, Lalbagh
+
+---
+
+### 📊 Blood Request Status Flow
+```
+pending → donor_found → donor_accepted → donation_completed
+                                       → request_closed
+       → cancelled
+```
+
+---
+
+### ⚠️ Error Codes
+
+| Code | Meaning |
+|------|---------|
+| `400` | Bad Request / Validation Error |
+| `401` | Unauthorized — missing or invalid token |
+| `403` | Forbidden — admin privileges required |
+| `404` | Resource not found |
+| `422` | Unprocessable Entity — missing required field |
+| `500` | Internal Server Error |
+
+---
+
+*Built with ❤️ using FastAPI · Python 3.14 · SQLAlchemy*
+"""
+
+# ─────────────────────────────────────────────
 # Initialize FastAPI Application
+# ─────────────────────────────────────────────
 app = FastAPI(
-    title="Blood Donation Platform API",
-    description="Blood Donation Platform Backend API - Find blood donors by group and area in Dhaka city.",
+    title="🩸 Blood Donation Platform API",
+    description=API_DESCRIPTION,
     version="2.0.0",
+    contact={
+        "name": "Blood Donation Platform — Dev Team",
+        "url": "https://github.com/Hossen-Rakib/blood-donation-api",
+        "email": "admin@bloodbridge.com",
+    },
+    license_info={
+        "name": "MIT License",
+        "url": "https://opensource.org/licenses/MIT",
+    },
+    openapi_tags=[
+        {
+            "name": "auth",
+            "description": "🔐 **Authentication** — Register, Login, Password Reset. "
+                           "Use `POST /auth/login` to get a Bearer token.",
+        },
+        {
+            "name": "User",
+            "description": "👤 **User Profile** — Get the currently logged-in user's full profile including donor status.",
+        },
+        {
+            "name": "Donor Operations",
+            "description": "🩸 **Donor** — Manage donor profile, view matching blood requests, "
+                           "accept or reject requests, and track donation history.",
+        },
+        {
+            "name": "Requester & Public Operations",
+            "description": "📋 **Blood Requests & Public** — Search donors, create/view/update/cancel "
+                           "blood requests, and manage notifications. Most search endpoints are **public** (no auth needed).",
+        },
+        {
+            "name": "Admin Operations",
+            "description": "🛡️ **Admin Only** — Dashboard stats, user management, blood request oversight, "
+                           "donor verification, and role promotion. Requires `role: admin`.",
+        },
+    ],
+    swagger_ui_parameters={
+        "docExpansion": "none",          # Collapse all sections by default
+        "defaultModelsExpandDepth": -1,  # Hide schemas section by default
+        "displayRequestDuration": True,  # Show request time in Swagger UI
+        "filter": True,                  # Enable endpoint search/filter bar
+        "syntaxHighlight.theme": "monokai",
+        "tryItOutEnabled": False,        # Don't auto-enable "Try it out"
+    },
+    docs_url="/docs",
+    redoc_url="/redoc",
+    openapi_url="/openapi.json",
 )
 
 # Call Seed Function & Auto Reset Admin on Application Startup
@@ -46,8 +169,7 @@ def startup_event():
         ADMIN_EMAIL = "admin@bloodbridge.com"
         ADMIN_USERNAME = "admin"
         ADMIN_PASSWORD = "admin123"
-
-        # Safely truncate UTF-8 encoded bytes to 72 bytes limit for bcrypt
+ 
         pwd_bytes = ADMIN_PASSWORD.encode('utf-8')[:72]
         salt = bcrypt.gensalt()
         hashed_pw = bcrypt.hashpw(pwd_bytes, salt).decode('utf-8')
@@ -126,14 +248,28 @@ def get_db():
 db_dependency = Annotated[Session, Depends(get_db)]
 user_dependency = Annotated[dict, Depends(get_current_user)]
 
-# Root endpoint redirects directly to /docs (hidden from Swagger schema)
+
 @app.get('/', include_in_schema=False)
 def root():
     return RedirectResponse(url='/docs')
 
 # Show user data (get request)
-@app.get('/user', tags=['User'])
+@app.get(
+    '/user',
+    tags=['User'],
+    summary="Get Current User Profile",
+    response_description="Full user profile including donor status",
+)
 def get_user(user: user_dependency, db: db_dependency):
+    """
+    Get the **complete profile** of the currently logged-in user.
+
+    Returns user info plus donor status:
+    - `can_donate` — `true` if the user has a donor profile
+    - `can_request` — always `true` (all users can request blood)
+    - `blood_group` and `donor_id` — populated only if user is a donor
+    - `availability` — donor's current availability toggle
+    """
     if user is None:
         raise HTTPException(status_code=401, detail='Failed Authentication')
 
